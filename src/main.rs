@@ -6,6 +6,8 @@ use std::io::prelude::*;
 extern crate log;
 
 mod rom;
+mod cpu;
+mod instructions;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
