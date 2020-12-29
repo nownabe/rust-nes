@@ -66,8 +66,10 @@ impl Cpu {
 
     pub fn tick(&mut self) {
         if self.instruction_cycle == 0 {
-            let instruction = self.fetch_byte();
-            self.execute_instruction(instruction.into());
+            let inst: Instruction = self.fetch_byte().into();
+            let Instruction(opcode, addr, cycle) = inst;
+            self.instruction_cycle = cycle;
+            self.execute_instruction(opcode, addr);
         }
         self.instruction_cycle -= 1;
     }
@@ -84,17 +86,17 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, inst: Instruction) {
-        match inst {
-            Instruction(Opcode::LDA, Addressing::Immediate) => self.instruction_lda_immediate(),
-            Instruction(Opcode::LDX, Addressing::Immediate) => self.instruction_ldx_immediate(),
-            Instruction(Opcode::LDY, Addressing::Immediate) => self.instruction_ldy_immediate(),
-            Instruction(Opcode::SEI, Addressing::Implied) => self.instruction_sei_implied(),
-            Instruction(Opcode::STA, Addressing::Absolute) => self.instruction_sta_absolute(),
-            Instruction(Opcode::TXS, Addressing::Implied) => self.instruction_txs_implied(),
+    fn execute_instruction(&mut self, op: Opcode, _addressing: Addressing) {
+        match op {
+            Opcode::LDA => self.instruction_lda_immediate(),
+            Opcode::LDX => self.instruction_ldx_immediate(),
+            Opcode::LDY => self.instruction_ldy_immediate(),
+            Opcode::SEI => self.instruction_sei_implied(),
+            Opcode::STA => self.instruction_sta_absolute(),
+            Opcode::TXS => self.instruction_txs_implied(),
             _ => {
                 self.dump();
-                panic!("unknown instruction {:?}", inst)
+                panic!("unknown opcode {:?}", op)
             }
         }
     }
@@ -126,7 +128,6 @@ impl Cpu {
 
     // 0xa9
     fn instruction_lda_immediate(&mut self) {
-        self.instruction_cycle = 2;
         self.a = self.fetch_byte();
         self.write_flag(Flag::Zero, self.a == 0);
         self.write_flag(Flag::Negative, is_negative(self.a));
@@ -134,14 +135,12 @@ impl Cpu {
 
     // 0xa2
     fn instruction_ldx_immediate(&mut self) {
-        self.instruction_cycle = 2;
         self.x = self.fetch_byte();
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
     fn instruction_ldy_immediate(&mut self) {
-        self.instruction_cycle = 2;
         self.y = self.fetch_byte();
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
@@ -149,20 +148,17 @@ impl Cpu {
 
     // 0x78
     fn instruction_sei_implied(&mut self) {
-        self.instruction_cycle = 2;
         self.write_flag(Flag::InterruptDisable, true)
     }
 
     // 0x8d
     fn instruction_sta_absolute(&mut self) {
-        self.instruction_cycle = 4;
         let addr = self.fetch_word() as usize;
         self.memory[addr] = self.a;
     }
 
     // 0x9a
     fn instruction_txs_implied(&mut self) {
-        self.instruction_cycle = 2;
         self.s = self.x;
     }
 }
