@@ -206,29 +206,47 @@ mod tests {
     }
 
     #[test]
-    fn instruction_lda_immediate() {
-        let opcode = 0xa9;
-
+    fn instruction_lda() {
+        // Test flag behavior
         let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 3]);
+        cpu.load_program(vec![0xA9, 3]);
         cpu.tick();
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 0]);
+        cpu.load_program(vec![0xA9, 0]);
         cpu.tick();
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, !3 + 1]);
+        cpu.load_program(vec![0xA9, !3 + 1]);
         cpu.tick();
         assert_eq!(cpu.a, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
+
+        // Immediate: Omission
+
+        // Absolute X
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xBD, 0x10, 0x10]);
+        cpu.memory[0x1011] = 3;
+        cpu.x = 0x01;
+        cpu.tick();
+        assert_eq!(cpu.a, 3);
+        assert_eq!(cpu.instruction_cycle, 3);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xBD, 0xFF, 0x10]);
+        cpu.memory[0x1100] = 3;
+        cpu.x = 0x01;
+        cpu.tick();
+        assert_eq!(cpu.a, 3);
+        assert_eq!(cpu.instruction_cycle, 4);
     }
 
     #[test]
