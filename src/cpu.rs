@@ -90,6 +90,7 @@ impl Cpu {
         self.instruction_cycle = cycle;
 
         match opcode {
+            Opcode::DEC => self.instruction_dec(addressing),
             Opcode::DEY => self.instruction_dey(addressing),
             Opcode::INX => self.instruction_inx(addressing),
             Opcode::LDA => self.instruction_lda(addressing),
@@ -128,6 +129,17 @@ impl Cpu {
         println!("  s  = {}", self.s);
         println!("  p  = {}", self.status);
         println!("}}");
+    }
+
+    fn instruction_dec(&mut self, addressing: Addressing) {
+        let addr = match addressing {
+            Addressing::ZeroPage => self.fetch_byte() as usize,
+            _ => panic!("Unknown LDA addressing mode: {:?}", addressing),
+        };
+        let val = self.memory[addr];
+        self.memory[addr] = val.wrapping_add(!1+1);
+        self.write_flag(Flag::Zero, self.memory[addr] == 0);
+        self.write_flag(Flag::Negative, is_negative(self.memory[addr]));
     }
 
     fn instruction_dey(&mut self, _: Addressing) {
@@ -219,6 +231,35 @@ mod tests {
             memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
+    }
+
+    #[test]
+    fn instruction_dec() {
+        // Flag behavior
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xC6, 0x10]);
+        cpu.memory[0x0010] = 0x03;
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 5);
+        assert_eq!(cpu.memory[0x0010], 0x02);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xC6, 0x10]);
+        cpu.memory[0x0010] = 0x01;
+        cpu.execute_instruction();
+        assert_eq!(cpu.memory[0x0010], 0x00);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xC6, 0x10]);
+        cpu.memory[0x0010] = 0x00;
+        cpu.execute_instruction();
+        assert_eq!(cpu.memory[0x0010], !0x01+1);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
     }
 
     #[test]
