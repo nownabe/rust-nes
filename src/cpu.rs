@@ -96,7 +96,7 @@ impl Cpu {
             Opcode::TXS => self.instruction_txs(addressing),
             _ => {
                 self.dump();
-                panic!("unknown opcode {:?}", op)
+                panic!("unknown opcode: {}", op)
             }
         }
     }

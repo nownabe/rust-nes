@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt::{self, Formatter, Display};
 
 // https://www.masswerk.at/6502/6502_instruction_set.html
 // http://obelisk.me.uk/6502/reference.html
@@ -7,14 +8,73 @@ pub struct Instruction(pub Opcode, pub Addressing, pub u8);
 
 #[derive(Debug)]
 pub enum Opcode {
+    ADC,
+    AND,
+    ASL,
+    BCC,
+    BCS,
+    BEQ,
+    BIT,
+    BMI,
+    BNE,
+    BPL,
+    BRK,
+    BVC,
+    BVS,
+    CLC,
+    CLD,
+    CLI,
+    CLV,
+    CMP,
+    CPX,
+    CPY,
+    DEC,
+    DEX,
+    DEY,
+    EOR,
+    INC,
+    INX,
+    INY,
+    JMP,
+    JSR,
     LDA,
     LDX,
     LDY,
+    LSR,
+    NOP,
+    ORA,
+    PHA,
+    PHP,
+    PLA,
+    PLP,
+    ROL,
+    ROR,
+    RTI,
+    RTS,
+    SBC,
+    SEC,
+    SED,
     SEI,
     STA,
+    STX,
+    STY,
+    TAX,
+    TAY,
+    TSX,
+    TXA,
     TXS,
+    TYA,
 
-    UNKNOWN,
+    UNKNOWN(u8),
+}
+
+impl Display for Opcode {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::UNKNOWN(byte) => write!(f, "UNKNWON(0x{:X})", byte),
+            _ => write!(f, "{:?}", self),
+        }
+    }
 }
 
 impl From<u8> for Instruction {
@@ -26,7 +86,7 @@ impl From<u8> for Instruction {
             0x78 => Instruction(Opcode::SEI, Addressing::Implied, 2),
             0x8D => Instruction(Opcode::STA, Addressing::Absolute, 4),
             0x9A => Instruction(Opcode::TXS, Addressing::Implied, 2),
-            _ => Instruction(Opcode::UNKNOWN, Addressing::UNKNOWN, 0),
+            _ => Instruction(Opcode::UNKNOWN(opcode), Addressing::UNKNOWN, 0),
         }
     }
 }
