@@ -88,6 +88,7 @@ impl Cpu {
         let Instruction(opcode, addressing, cycle) = inst;
         self.instruction_cycle = cycle;
         match opcode {
+            Opcode::INX => self.instruction_inx(addressing),
             Opcode::LDA => self.instruction_lda(addressing),
             Opcode::LDX => self.instruction_ldx(addressing),
             Opcode::LDY => self.instruction_ldy(addressing),
@@ -124,6 +125,12 @@ impl Cpu {
         println!("  s  = {}", self.s);
         println!("  p  = {}", self.status);
         println!("}}");
+    }
+
+    fn instruction_inx(&mut self, _: Addressing) {
+        self.x = self.x.wrapping_add(1);
+        self.write_flag(Flag::Zero, self.x == 0);
+        self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
     fn instruction_lda(&mut self, addressing: Addressing) {
@@ -203,6 +210,33 @@ mod tests {
             memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
+    }
+
+    #[test]
+    fn instruction_inx() {
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xE8]);
+        cpu.x = 0x03;
+        cpu.execute_instruction();
+        assert_eq!(cpu.x, 0x04);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xE8]);
+        cpu.x = !1 + 1;
+        cpu.execute_instruction();
+        assert_eq!(cpu.x, 0x00);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xE8]);
+        cpu.x = !3 + 1;
+        cpu.execute_instruction();
+        assert_eq!(cpu.x, !2+1);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
     }
 
     #[test]
