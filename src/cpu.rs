@@ -66,10 +66,7 @@ impl Cpu {
 
     pub fn tick(&mut self) {
         if self.instruction_cycle == 0 {
-            let inst: Instruction = self.fetch_byte().into();
-            let Instruction(opcode, addr, cycle) = inst;
-            self.instruction_cycle = cycle;
-            self.execute_instruction(opcode, addr);
+            self.execute_instruction();
         }
         self.instruction_cycle -= 1;
     }
@@ -86,8 +83,11 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, op: Opcode, addressing: Addressing) {
-        match op {
+    fn execute_instruction(&mut self) {
+        let inst: Instruction = self.fetch_byte().into();
+        let Instruction(opcode, addressing, cycle) = inst;
+        self.instruction_cycle = cycle;
+        match opcode {
             Opcode::LDA => self.instruction_lda(addressing),
             Opcode::LDX => self.instruction_ldx(addressing),
             Opcode::LDY => self.instruction_ldy(addressing),
@@ -96,7 +96,7 @@ impl Cpu {
             Opcode::TXS => self.instruction_txs(addressing),
             _ => {
                 self.dump();
-                panic!("unknown opcode: {}", op)
+                panic!("unknown opcode: {}", opcode)
             }
         }
     }
@@ -210,21 +210,22 @@ mod tests {
         // Test flag behavior
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0xA9, 3]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.a, 3);
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0xA9, 0]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0xA9, !3 + 1]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.a, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -236,17 +237,17 @@ mod tests {
         cpu.load_program(vec![0xBD, 0x10, 0x10]);
         cpu.memory[0x1011] = 3;
         cpu.x = 0x01;
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.a, 3);
-        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.instruction_cycle, 4);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0xBD, 0xFF, 0x10]);
         cpu.memory[0x1100] = 3;
         cpu.x = 0x01;
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.a, 3);
-        assert_eq!(cpu.instruction_cycle, 4);
+        assert_eq!(cpu.instruction_cycle, 5);
     }
 
     #[test]
@@ -255,21 +256,22 @@ mod tests {
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 3]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.x, 3);
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 0]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.x, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, !3 + 1]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.x, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -281,21 +283,22 @@ mod tests {
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 3]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.y, 3);
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 0]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.y, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, !3 + 1]);
-        cpu.tick();
+        cpu.execute_instruction();
         assert_eq!(cpu.y, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -305,7 +308,8 @@ mod tests {
     fn instruction_sei_implied() {
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0x78]);
-        cpu.tick();
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
     }
 
@@ -316,7 +320,8 @@ mod tests {
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 0x11, 0x01]);
         cpu.a = 3;
-        cpu.tick();
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 4);
         assert_eq!(cpu.memory[0x0111], 3);
     }
 
@@ -325,7 +330,8 @@ mod tests {
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0x9a]);
         cpu.x = 3;
-        cpu.tick();
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.s, 3);
     }
 }
