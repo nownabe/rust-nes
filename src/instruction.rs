@@ -33,9 +33,18 @@ impl From<u8> for Instruction {
 
 #[derive(Debug)]
 pub enum Addressing {
-    Implied,
-    Immediate,
+    Accumulator,
     Absolute,
+    AbsoluteX,
+    AbsoluteY,
+    Immediate,
+    Implied,
+    IndexedIndirect,
+    Indirect,
+    IndirectIndexed,
+    Zeropage,
+    ZeropageX,
+    ZeropageY,
 
     UNKNOWN,
 }
