@@ -81,8 +81,8 @@ impl Cpu {
 
 
     fn fetch_word(&mut self) -> u16 {
-        let h = self.fetch_byte() as u16;
         let l = self.fetch_byte() as u16;
+        let h = self.fetch_byte() as u16;
         h << 8 | l
     }
 
