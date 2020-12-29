@@ -1,28 +1,40 @@
+const MEMORY_SIZE: usize = 0xffff;
+const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
+
 #[derive(Debug)]
-pub enum CpuFlag {
+pub enum Flag {
+    Carry,
+    Zero,
     InterruptDisable,
+    Decimal,
+    Overflow,
+    Negative,
 }
 
-impl From<CpuFlag> for u8 {
-    fn from(f: CpuFlag) -> Self {
+impl From<Flag> for u8 {
+    fn from(f: Flag) -> Self {
         match f {
-            CpuFlag::InterruptDisable => 0b0000100,
+            Flag::Carry => 0b00000001,
+            Flag::Zero => 0b0000010,
+            Flag::InterruptDisable => 0b0000100,
+            Flag::Decimal => 0b00001000,
+            Flag::Overflow => 0b01000000,
+            Flag::Negative => 0b10000000,
         }
     }
 }
 
-#[derive(Debug)]
 pub struct Cpu {
     // Registers
     a: u8,
     x: u8,
     y: u8,
     pc: u16,
-    sp: u8,
-    status: u8,
+    s: u8,
+    status: u8, // P
 
     // Memory
-    memory: Vec<u8>,
+    memory: [u8; MEMORY_SIZE],
 
     // State
     instruction_cycle: u8,
@@ -34,16 +46,18 @@ impl Cpu {
             a: 0,
             x: 0,
             y: 0,
-            pc: 0x34,
-            sp: 0xfd,
+            pc: MEMORY_PROGRAM_OFFSET as u16,
+            s: 0xfd,
             status: 0x34,
-            memory: vec![],
+            memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
     }
 
-    pub fn load(&mut self, data: Vec<u8>) {
-        self.memory = data;
+    pub fn load_program(&mut self, data: Vec<u8>) {
+        for i in 0..data.len() {
+            self.memory[MEMORY_PROGRAM_OFFSET + i] = data[i];
+        }
     }
 
     pub fn tick(&mut self) {
@@ -59,19 +73,30 @@ impl Cpu {
         self.memory[(self.pc-1) as usize]
     }
 
+
+    fn fetch_word(&mut self) -> u16 {
+        let h = self.fetch() as u16;
+        let l = self.fetch() as u16;
+        h << 8 | l
+    }
+
     fn execute_instruction(&mut self, instruction: u8) {
         match instruction {
+            0xa9 => self.instruction_lda_immediate(),
+            0xa2 => self.instruction_ldx_immediate(),
             0x78 => self.instruction_sei_implied(),
+            0x8d => self.instruction_sta_absolute(),
+            0x9a => self.instruction_txs_implied(),
             _ => panic!("unknown instruction {:?}", instruction)
         }
     }
 
-    pub fn read_flag(self, f: CpuFlag) -> bool {
+    pub fn read_flag(&self, f: Flag) -> bool {
         let bit: u8 = f.into();
         self.status & bit == bit
     }
 
-    fn write_flag(&mut self, f: CpuFlag, v: bool) {
+    fn write_flag(&mut self, f: Flag, v: bool) {
         let bit: u8 = f.into();
         if v {
             self.status |= bit
@@ -80,37 +105,143 @@ impl Cpu {
         }
     }
 
+    // 0xa9
+    fn instruction_lda_immediate(&mut self) {
+        self.instruction_cycle = 2;
+        self.a = self.fetch();
+        self.write_flag(Flag::Zero, self.a == 0);
+        self.write_flag(Flag::Negative, is_negative(self.a));
+    }
+
+    // 0xa2
+    fn instruction_ldx_immediate(&mut self) {
+        self.instruction_cycle = 2;
+        self.x = self.fetch();
+        self.write_flag(Flag::Zero, self.x == 0);
+        self.write_flag(Flag::Negative, is_negative(self.x));
+    }
+
     // 0x78
     fn instruction_sei_implied(&mut self) {
         self.instruction_cycle = 2;
-        self.write_flag(CpuFlag::InterruptDisable, true)
+        self.write_flag(Flag::InterruptDisable, true)
     }
+
+    // 0x8d
+    fn instruction_sta_absolute(&mut self) {
+        self.instruction_cycle = 4;
+        let addr = self.fetch_word() as usize;
+        self.memory[addr] = self.a;
+    }
+
+    // 0x9a
+    fn instruction_txs_implied(&mut self) {
+        self.instruction_cycle = 2;
+        self.s = self.x;
+    }
+}
+
+fn is_negative(v: u8) -> bool {
+    v & 0b10000000 == 0b10000000
 }
 
 #[cfg(test)]
 mod tests {
+    use super::MEMORY_SIZE;
+    use super::MEMORY_PROGRAM_OFFSET;
     use super::Cpu;
-    use super::CpuFlag;
+    use super::Flag;
 
     fn new_test_cpu() -> Cpu {
         Cpu {
             a: 0,
             x: 0,
             y: 0,
-            pc: 0,
-            sp: 0,
+            pc: MEMORY_PROGRAM_OFFSET as u16,
+            s: 0,
             status: 0,
-            memory: vec![],
+            memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
     }
 
     #[test]
+    fn instruction_lda_immediate() {
+        let opcode = 0xa9;
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 3]);
+        cpu.tick();
+        assert_eq!(cpu.a, 3);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 0]);
+        cpu.tick();
+        assert_eq!(cpu.a, 0);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, !3 + 1]);
+        cpu.tick();
+        assert_eq!(cpu.a, !3 + 1);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
+    }
+
+    #[test]
+    fn instruction_ldx_immediate() {
+        let opcode = 0xa2;
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 3]);
+        cpu.tick();
+        assert_eq!(cpu.x, 3);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 0]);
+        cpu.tick();
+        assert_eq!(cpu.x, 0);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, !3 + 1]);
+        cpu.tick();
+        assert_eq!(cpu.x, !3 + 1);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
+    }
+
+    #[test]
     fn instruction_sei_implied() {
         let mut cpu = new_test_cpu();
-        println!("{:?}", cpu);
-        cpu.load(vec![0x78]);
+        cpu.load_program(vec![0x78]);
         cpu.tick();
-        assert_eq!(cpu.read_flag(CpuFlag::InterruptDisable), true);
+        assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
+    }
+
+    #[test]
+    fn instruction_sta_absolute() {
+        let mut opcode = 0x8d;
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 0x01, 0x11]);
+        cpu.a = 3;
+        cpu.tick();
+        assert_eq!(cpu.memory[0x0111], 3);
+    }
+
+    #[test]
+    fn instruction_txs_implied() {
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0x9a]);
+        cpu.x = 3;
+        cpu.tick();
+        assert_eq!(cpu.s, 3);
     }
 }
