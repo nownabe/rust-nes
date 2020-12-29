@@ -66,21 +66,21 @@ impl Cpu {
 
     pub fn tick(&mut self) {
         if self.instruction_cycle == 0 {
-            let instruction = self.fetch();
+            let instruction = self.fetch_byte();
             self.execute_instruction(instruction.into());
         }
         self.instruction_cycle -= 1;
     }
 
-    fn fetch(&mut self) -> u8 {
+    fn fetch_byte(&mut self) -> u8 {
         self.pc += 1;
         self.memory[(self.pc-1) as usize]
     }
 
 
     fn fetch_word(&mut self) -> u16 {
-        let h = self.fetch() as u16;
-        let l = self.fetch() as u16;
+        let h = self.fetch_byte() as u16;
+        let l = self.fetch_byte() as u16;
         h << 8 | l
     }
 
@@ -127,7 +127,7 @@ impl Cpu {
     // 0xa9
     fn instruction_lda_immediate(&mut self) {
         self.instruction_cycle = 2;
-        self.a = self.fetch();
+        self.a = self.fetch_byte();
         self.write_flag(Flag::Zero, self.a == 0);
         self.write_flag(Flag::Negative, is_negative(self.a));
     }
@@ -135,14 +135,14 @@ impl Cpu {
     // 0xa2
     fn instruction_ldx_immediate(&mut self) {
         self.instruction_cycle = 2;
-        self.x = self.fetch();
+        self.x = self.fetch_byte();
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
     fn instruction_ldy_immediate(&mut self) {
         self.instruction_cycle = 2;
-        self.y = self.fetch();
+        self.y = self.fetch_byte();
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
