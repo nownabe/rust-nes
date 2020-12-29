@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn instruction_sta_absolute() {
-        let mut opcode = 0x8d;
+        let opcode = 0x8d;
 
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![opcode, 0x01, 0x11]);
