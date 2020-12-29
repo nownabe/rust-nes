@@ -280,6 +280,7 @@ mod tests {
         cpu.load_program(vec![0x88]);
         cpu.y = 0x03;
         cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.y, 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
@@ -299,7 +300,6 @@ mod tests {
         assert_eq!(cpu.y, !1+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
-
     }
 
     #[test]
@@ -308,6 +308,7 @@ mod tests {
         cpu.load_program(vec![0xE8]);
         cpu.x = 0x03;
         cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.x, 0x04);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
