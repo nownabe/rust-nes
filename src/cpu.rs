@@ -134,7 +134,8 @@ impl Cpu {
     fn instruction_dec(&mut self, addressing: Addressing) {
         let addr = match addressing {
             Addressing::ZeroPage => self.fetch_byte() as usize,
-            _ => panic!("Unknown LDA addressing mode: {:?}", addressing),
+            Addressing::ZeroPageX => self.fetch_byte().wrapping_add(self.x) as usize,
+            _ => panic!("Unknown DEC addressing mode: {:?}", addressing),
         };
         let val = self.memory[addr];
         self.memory[addr] = val.wrapping_add(!1+1);
@@ -235,7 +236,7 @@ mod tests {
 
     #[test]
     fn instruction_dec() {
-        // Flag behavior
+        // ZeroPage; Flag behavior
         let mut cpu = new_test_cpu();
         cpu.load_program(vec![0xC6, 0x10]);
         cpu.memory[0x0010] = 0x03;
@@ -260,6 +261,17 @@ mod tests {
         assert_eq!(cpu.memory[0x0010], !0x01+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
+
+        // ZeroPage, X
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xD6, 0x10]);
+        cpu.memory[0x0011] = 0x03;
+        cpu.x = 0x01;
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 6);
+        assert_eq!(cpu.memory[0x0011], 0x02);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
     }
 
     #[test]
