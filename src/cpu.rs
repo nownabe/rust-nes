@@ -2,7 +2,7 @@ use super::instruction::Instruction;
 use super::instruction::Opcode;
 use super::instruction::Addressing;
 
-const MEMORY_SIZE: usize = 0xffff;
+const MEMORY_SIZE: usize = 0x10000;
 const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
 
 #[derive(Debug)]
@@ -91,7 +91,10 @@ impl Cpu {
             Instruction(Opcode::SEI, Addressing::Implied) => self.instruction_sei_implied(),
             Instruction(Opcode::STA, Addressing::Absolute) => self.instruction_sta_absolute(),
             Instruction(Opcode::TXS, Addressing::Implied) => self.instruction_txs_implied(),
-            _ => panic!("unknown instruction {:?}", inst)
+            _ => {
+                self.dump();
+                panic!("unknown instruction {:?}", inst)
+            }
         }
     }
 
@@ -107,6 +110,17 @@ impl Cpu {
         } else {
             self.status &= !bit
         }
+    }
+
+    fn dump(&self) {
+        println!("Cpu {{");
+        println!("  a  = {}", self.a);
+        println!("  x  = {}", self.x);
+        println!("  y  = {}", self.y);
+        println!("  pc = {}", self.pc);
+        println!("  s  = {}", self.s);
+        println!("  p  = {}", self.status);
+        println!("}}");
     }
 
     // 0xa9

@@ -33,6 +33,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("ROM must be iNES format".into());
     }
 
+    let program_data = rom.program_data();
+    debug!("program data length = {} bytes", program_data.len());
+    let mut cpu = cpu::Cpu::new();
+    cpu.load_program(program_data);
+    loop {
+        cpu.tick()
+    }
+
+
     // let program_data_size = &buf[4];
     // debug!("program data size = {}", program_data_size);
     // let character_data_size = &buf[5];

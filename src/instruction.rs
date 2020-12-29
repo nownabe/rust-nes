@@ -11,6 +11,8 @@ pub enum Opcode {
     SEI,
     STA,
     TXS,
+
+    UNKNOWN,
 }
 
 impl From<u8> for Instruction {
@@ -21,7 +23,7 @@ impl From<u8> for Instruction {
             0x78 => Instruction(Opcode::SEI, Addressing::Implied),
             0x8D => Instruction(Opcode::STA, Addressing::Absolute),
             0x9A => Instruction(Opcode::TXS, Addressing::Implied),
-            _ => panic!("Unknown opcode")
+            _ => Instruction(Opcode::UNKNOWN, Addressing::UNKNOWN),
         }
     }
 }
@@ -30,6 +32,8 @@ impl From<u8> for Instruction {
 pub enum Addressing {
     Implied,
     Immediate,
-    Absolute
+    Absolute,
+
+    UNKNOWN,
 }
 
