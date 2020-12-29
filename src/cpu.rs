@@ -86,14 +86,14 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, op: Opcode, _addressing: Addressing) {
+    fn execute_instruction(&mut self, op: Opcode, addressing: Addressing) {
         match op {
-            Opcode::LDA => self.instruction_lda_immediate(),
-            Opcode::LDX => self.instruction_ldx_immediate(),
-            Opcode::LDY => self.instruction_ldy_immediate(),
-            Opcode::SEI => self.instruction_sei_implied(),
-            Opcode::STA => self.instruction_sta_absolute(),
-            Opcode::TXS => self.instruction_txs_implied(),
+            Opcode::LDA => self.instruction_lda(addressing),
+            Opcode::LDX => self.instruction_ldx(addressing),
+            Opcode::LDY => self.instruction_ldy(addressing),
+            Opcode::SEI => self.instruction_sei(addressing),
+            Opcode::STA => self.instruction_sta(addressing),
+            Opcode::TXS => self.instruction_txs(addressing),
             _ => {
                 self.dump();
                 panic!("unknown opcode {:?}", op)
@@ -126,39 +126,49 @@ impl Cpu {
         println!("}}");
     }
 
-    // 0xa9
-    fn instruction_lda_immediate(&mut self) {
-        self.a = self.fetch_byte();
+    fn instruction_lda(&mut self, addressing: Addressing) {
+        let operand = match addressing {
+            Addressing::Immediate => self.fetch_byte(),
+            _ => panic!("Unknown addressing mode: {:?}", addressing),
+        };
+        self.a = operand;
         self.write_flag(Flag::Zero, self.a == 0);
         self.write_flag(Flag::Negative, is_negative(self.a));
     }
 
-    // 0xa2
-    fn instruction_ldx_immediate(&mut self) {
-        self.x = self.fetch_byte();
+    fn instruction_ldx(&mut self, addressing: Addressing) {
+        let operand = match addressing {
+            Addressing::Immediate => self.fetch_byte(),
+            _ => panic!("Unknown addressing mode: {:?}", addressing),
+        };
+        self.x = operand;
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_ldy_immediate(&mut self) {
-        self.y = self.fetch_byte();
+    fn instruction_ldy(&mut self, addressing: Addressing) {
+        let operand = match addressing {
+            Addressing::Immediate => self.fetch_byte(),
+            _ => panic!("Unknown addressing mode: {:?}", addressing),
+        };
+        self.y = operand;
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
-    // 0x78
-    fn instruction_sei_implied(&mut self) {
+    fn instruction_sei(&mut self, _: Addressing) {
         self.write_flag(Flag::InterruptDisable, true)
     }
 
-    // 0x8d
-    fn instruction_sta_absolute(&mut self) {
-        let addr = self.fetch_word() as usize;
+    fn instruction_sta(&mut self, addressing: Addressing) {
+        let addr = match addressing {
+            Addressing::Absolute => self.fetch_word() as usize,
+            _ => panic!("Unknown addressing mode: {:?}", addressing),
+        };
         self.memory[addr] = self.a;
     }
 
-    // 0x9a
-    fn instruction_txs_implied(&mut self) {
+    fn instruction_txs(&mut self, _: Addressing) {
         self.s = self.x;
     }
 }
