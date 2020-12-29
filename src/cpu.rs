@@ -1,3 +1,7 @@
+use super::instruction::Instruction;
+use super::instruction::Opcode;
+use super::instruction::Addressing;
+
 const MEMORY_SIZE: usize = 0xffff;
 const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
 
@@ -63,7 +67,7 @@ impl Cpu {
     pub fn tick(&mut self) {
         if self.instruction_cycle == 0 {
             let instruction = self.fetch();
-            self.execute_instruction(instruction);
+            self.execute_instruction(instruction.into());
         }
         self.instruction_cycle -= 1;
     }
@@ -80,14 +84,14 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, instruction: u8) {
-        match instruction {
-            0xa9 => self.instruction_lda_immediate(),
-            0xa2 => self.instruction_ldx_immediate(),
-            0x78 => self.instruction_sei_implied(),
-            0x8d => self.instruction_sta_absolute(),
-            0x9a => self.instruction_txs_implied(),
-            _ => panic!("unknown instruction {:?}", instruction)
+    fn execute_instruction(&mut self, inst: Instruction) {
+        match inst {
+            Instruction(Opcode::LDA, Addressing::Immediate) => self.instruction_lda_immediate(),
+            Instruction(Opcode::LDX, Addressing::Immediate) => self.instruction_ldx_immediate(),
+            Instruction(Opcode::SEI, Addressing::Implied) => self.instruction_sei_implied(),
+            Instruction(Opcode::STA, Addressing::Absolute) => self.instruction_sta_absolute(),
+            Instruction(Opcode::TXS, Addressing::Implied) => self.instruction_txs_implied(),
+            _ => panic!("unknown instruction {:?}", inst)
         }
     }
 
