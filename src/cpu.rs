@@ -288,7 +288,7 @@ mod tests {
         let opcode = 0x8d;
 
         let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 0x01, 0x11]);
+        cpu.load_program(vec![opcode, 0x11, 0x01]);
         cpu.a = 3;
         cpu.tick();
         assert_eq!(cpu.memory[0x0111], 3);
