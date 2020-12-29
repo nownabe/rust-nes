@@ -80,6 +80,7 @@ impl Display for Opcode {
 impl From<u8> for Instruction {
     fn from(opcode: u8) -> Self {
         match opcode {
+            0x88 => Instruction(Opcode::DEY, Addressing::Implied, 2),
             0xE8 => Instruction(Opcode::INX, Addressing::Implied, 2),
 
             0xA9 => Instruction(Opcode::LDA, Addressing::Immediate, 2),
