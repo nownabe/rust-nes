@@ -129,7 +129,15 @@ impl Cpu {
     fn instruction_lda(&mut self, addressing: Addressing) {
         let operand = match addressing {
             Addressing::Immediate => self.fetch_byte(),
-            _ => panic!("Unknown addressing mode: {:?}", addressing),
+            Addressing::AbsoluteX => {
+                let word = self.fetch_word();
+                let addr = word + self.x as u16;
+                if (word & 0xff00) != (addr & 0xff00) {
+                    self.instruction_cycle += 1;
+                }
+                self.memory[addr as usize]
+            }
+            _ => panic!("Unknown LDA addressing mode: {:?}", addressing),
         };
         self.a = operand;
         self.write_flag(Flag::Zero, self.a == 0);

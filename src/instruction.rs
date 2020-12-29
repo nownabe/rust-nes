@@ -81,6 +81,14 @@ impl From<u8> for Instruction {
     fn from(opcode: u8) -> Self {
         match opcode {
             0xA9 => Instruction(Opcode::LDA, Addressing::Immediate, 2),
+            0xA5 => Instruction(Opcode::LDA, Addressing::ZeroPage, 3),
+            0xB5 => Instruction(Opcode::LDA, Addressing::ZeroPageX, 4),
+            0xAD => Instruction(Opcode::LDA, Addressing::Absolute, 4),
+            0xBD => Instruction(Opcode::LDA, Addressing::AbsoluteX, 4),
+            0xB9 => Instruction(Opcode::LDA, Addressing::AbsoluteY, 4),
+            0xA1 => Instruction(Opcode::LDA, Addressing::IndexedIndirect, 6),
+            0xB1 => Instruction(Opcode::LDA, Addressing::IndirectIndexed, 4),
+
             0xA2 => Instruction(Opcode::LDX, Addressing::Immediate, 2),
             0xA0 => Instruction(Opcode::LDY, Addressing::Immediate, 2),
             0x78 => Instruction(Opcode::SEI, Addressing::Implied, 2),
@@ -99,12 +107,12 @@ pub enum Addressing {
     AbsoluteY,
     Immediate,
     Implied,
-    IndexedIndirect,
+    IndexedIndirect, // OPC ($LL, X)
     Indirect,
-    IndirectIndexed,
-    Zeropage,
-    ZeropageX,
-    ZeropageY,
+    IndirectIndexed, // OPC ($LL), Y
+    ZeroPage,
+    ZeroPageX,
+    ZeroPageY,
 
     UNKNOWN,
 }
