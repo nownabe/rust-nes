@@ -138,7 +138,7 @@ impl Cpu {
             Addressing::Immediate => self.fetch_byte(),
             Addressing::AbsoluteX => {
                 let word = self.fetch_word();
-                let addr = word + self.x as u16;
+                let addr = word.wrapping_add(self.x as u16);
                 if (word & 0xff00) != (addr & 0xff00) {
                     self.instruction_cycle += 1;
                 }
