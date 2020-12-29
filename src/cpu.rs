@@ -88,6 +88,7 @@ impl Cpu {
         match inst {
             Instruction(Opcode::LDA, Addressing::Immediate) => self.instruction_lda_immediate(),
             Instruction(Opcode::LDX, Addressing::Immediate) => self.instruction_ldx_immediate(),
+            Instruction(Opcode::LDY, Addressing::Immediate) => self.instruction_ldy_immediate(),
             Instruction(Opcode::SEI, Addressing::Implied) => self.instruction_sei_implied(),
             Instruction(Opcode::STA, Addressing::Absolute) => self.instruction_sta_absolute(),
             Instruction(Opcode::TXS, Addressing::Implied) => self.instruction_txs_implied(),
@@ -137,6 +138,13 @@ impl Cpu {
         self.x = self.fetch();
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
+    }
+
+    fn instruction_ldy_immediate(&mut self) {
+        self.instruction_cycle = 2;
+        self.y = self.fetch();
+        self.write_flag(Flag::Zero, self.y == 0);
+        self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
     // 0x78
@@ -231,6 +239,32 @@ mod tests {
         cpu.load_program(vec![opcode, !3 + 1]);
         cpu.tick();
         assert_eq!(cpu.x, !3 + 1);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
+    }
+
+    #[test]
+    fn instruction_ldy_immediate() {
+        let opcode = 0xa0;
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 3]);
+        cpu.tick();
+        assert_eq!(cpu.y, 3);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, 0]);
+        cpu.tick();
+        assert_eq!(cpu.y, 0);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![opcode, !3 + 1]);
+        cpu.tick();
+        assert_eq!(cpu.y, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
     }
