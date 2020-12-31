@@ -90,6 +90,7 @@ impl Cpu {
         self.instruction_cycle = cycle;
 
         match opcode {
+            Opcode::BNE => self.instruction_bne(addressing),
             Opcode::DEC => self.instruction_dec(addressing),
             Opcode::DEY => self.instruction_dey(addressing),
             Opcode::INX => self.instruction_inx(addressing),
@@ -129,6 +130,24 @@ impl Cpu {
         println!("  s  = {}", self.s);
         println!("  p  = {}", self.status);
         println!("}}");
+    }
+
+    fn instruction_bne(&mut self, addressing: Addressing) {
+        if addressing != Addressing::Relative {
+            panic!("Unknown BNE addressing mode: {:?}", addressing);
+        }
+
+        let val = self.fetch_byte() as i8;
+
+        if self.read_flag(Flag::Zero) {
+            let addr = self.pc as i32 + val as i32;
+            if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
+                self.instruction_cycle += 1;
+            }
+
+            self.pc = addr as u16;
+            self.instruction_cycle += 1;
+        }
     }
 
     fn instruction_dec(&mut self, addressing: Addressing) {
@@ -232,6 +251,30 @@ mod tests {
             memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
+    }
+
+    #[test]
+    fn instruction_bne() {
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xD0, 0x03]);
+        cpu.write_flag(Flag::Zero, true);
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 + 0x03);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xD0, 0x03]);
+        cpu.write_flag(Flag::Zero, false);
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2);
+
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0xD0, !0x03+1]);
+        cpu.write_flag(Flag::Zero, true);
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 4);
+        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 - 0x03);
     }
 
     #[test]

@@ -80,6 +80,7 @@ impl Display for Opcode {
 impl From<u8> for Instruction {
     fn from(opcode: u8) -> Self {
         match opcode {
+            0xD0 => Instruction(Opcode::BNE, Addressing::Relative, 2),
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),
             0xD6 => Instruction(Opcode::DEC, Addressing::ZeroPageX, 6),
 
@@ -105,7 +106,7 @@ impl From<u8> for Instruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum Addressing {
     Accumulator,
     Absolute,
@@ -116,6 +117,7 @@ pub enum Addressing {
     IndexedIndirect, // OPC ($LL, X)
     Indirect,
     IndirectIndexed, // OPC ($LL), Y
+    Relative,
     ZeroPage,
     ZeroPageX,
     ZeroPageY,
