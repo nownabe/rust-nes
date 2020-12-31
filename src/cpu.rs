@@ -94,6 +94,7 @@ impl Cpu {
             Opcode::DEC => self.instruction_dec(addressing),
             Opcode::DEY => self.instruction_dey(addressing),
             Opcode::INX => self.instruction_inx(addressing),
+            Opcode::JMP => self.instruction_jmp(addressing),
             Opcode::LDA => self.instruction_lda(addressing),
             Opcode::LDX => self.instruction_ldx(addressing),
             Opcode::LDY => self.instruction_ldy(addressing),
@@ -172,6 +173,11 @@ impl Cpu {
         self.x = self.x.wrapping_add(1);
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
+    }
+
+    fn instruction_jmp(&mut self, addressing: Addressing) {
+        let addr = self.fetch_word();
+        self.pc = addr;
     }
 
     fn instruction_lda(&mut self, addressing: Addressing) {
@@ -371,6 +377,16 @@ mod tests {
         assert_eq!(cpu.x, !2+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
+    }
+
+    #[test]
+    fn instruction_jmp() {
+        // Absolute
+        let mut cpu = new_test_cpu();
+        cpu.load_program(vec![0x4C, 0x03, 0x01]);
+        cpu.execute_instruction();
+        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.pc, 0x0103);
     }
 
     #[test]

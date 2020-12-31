@@ -87,6 +87,8 @@ impl From<u8> for Instruction {
             0x88 => Instruction(Opcode::DEY, Addressing::Implied, 2),
             0xE8 => Instruction(Opcode::INX, Addressing::Implied, 2),
 
+            0x4C => Instruction(Opcode::JMP, Addressing::Absolute, 3),
+
             0xA9 => Instruction(Opcode::LDA, Addressing::Immediate, 2),
             0xA5 => Instruction(Opcode::LDA, Addressing::ZeroPage, 3),
             0xB5 => Instruction(Opcode::LDA, Addressing::ZeroPageX, 4),
