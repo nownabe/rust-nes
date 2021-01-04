@@ -8,6 +8,7 @@ extern crate log;
 mod rom;
 mod cpu;
 mod instruction;
+mod memory;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
@@ -35,10 +36,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let program_data = rom.program_data();
     debug!("program data length = {} bytes", program_data.len());
+    let mut mem = memory::Memory::new();
     let mut cpu = cpu::Cpu::new();
-    cpu.load_program(program_data);
+    cpu.load_program(&mut mem, program_data);
     loop {
-        cpu.tick()
+        cpu.tick(&mut mem)
     }
 
 

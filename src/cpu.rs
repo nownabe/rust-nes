@@ -1,8 +1,8 @@
 use super::instruction::Instruction;
 use super::instruction::Opcode;
 use super::instruction::Addressing;
+use super::memory::Memory;
 
-const MEMORY_SIZE: usize = 0x10000;
 const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
 
 #[derive(Debug)]
@@ -37,9 +37,6 @@ pub struct Cpu {
     s: u8,
     status: u8, // P
 
-    // Memory
-    memory: [u8; MEMORY_SIZE],
-
     // State
     instruction_cycle: u8,
 }
@@ -53,54 +50,54 @@ impl Cpu {
             pc: MEMORY_PROGRAM_OFFSET as u16,
             s: 0xfd,
             status: 0x34,
-            memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
         }
     }
 
-    pub fn load_program(&mut self, data: Vec<u8>) {
+    pub fn load_program(&mut self, mem: &mut Memory, data: Vec<u8>) {
         for i in 0..data.len() {
-            self.memory[MEMORY_PROGRAM_OFFSET + i] = data[i];
+            mem.write(MEMORY_PROGRAM_OFFSET + i, data[i]);
         }
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, mem: &mut Memory) {
         if self.instruction_cycle == 0 {
-            self.execute_instruction();
+            self.execute_instruction(mem);
         }
         self.instruction_cycle -= 1;
     }
 
-    fn fetch_byte(&mut self) -> u8 {
+    fn fetch_byte(&mut self, mem: &Memory) -> u8 {
         self.pc += 1;
-        self.memory[(self.pc-1) as usize]
+        mem.read((self.pc-1) as usize)
+        // self.memory[(self.pc-1) as usize]
     }
 
 
-    fn fetch_word(&mut self) -> u16 {
-        let l = self.fetch_byte() as u16;
-        let h = self.fetch_byte() as u16;
+    fn fetch_word(&mut self, mem: &Memory) -> u16 {
+        let l = self.fetch_byte(mem) as u16;
+        let h = self.fetch_byte(mem) as u16;
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self) {
-        let inst: Instruction = self.fetch_byte().into();
+    fn execute_instruction(&mut self, mem: &mut Memory) {
+        let inst: Instruction = self.fetch_byte(mem).into();
 
         let Instruction(opcode, addressing, cycle) = inst;
         self.instruction_cycle = cycle;
 
         match opcode {
-            Opcode::BNE => self.instruction_bne(addressing),
-            Opcode::DEC => self.instruction_dec(addressing),
-            Opcode::DEY => self.instruction_dey(addressing),
-            Opcode::INX => self.instruction_inx(addressing),
-            Opcode::JMP => self.instruction_jmp(addressing),
-            Opcode::LDA => self.instruction_lda(addressing),
-            Opcode::LDX => self.instruction_ldx(addressing),
-            Opcode::LDY => self.instruction_ldy(addressing),
-            Opcode::SEI => self.instruction_sei(addressing),
-            Opcode::STA => self.instruction_sta(addressing),
-            Opcode::TXS => self.instruction_txs(addressing),
+            Opcode::BNE => self.instruction_bne(mem, addressing),
+            Opcode::DEC => self.instruction_dec(mem, addressing),
+            Opcode::DEY => self.instruction_dey(mem, addressing),
+            Opcode::INX => self.instruction_inx(mem, addressing),
+            Opcode::JMP => self.instruction_jmp(mem, addressing),
+            Opcode::LDA => self.instruction_lda(mem, addressing),
+            Opcode::LDX => self.instruction_ldx(mem, addressing),
+            Opcode::LDY => self.instruction_ldy(mem, addressing),
+            Opcode::SEI => self.instruction_sei(mem, addressing),
+            Opcode::STA => self.instruction_sta(mem, addressing),
+            Opcode::TXS => self.instruction_txs(mem, addressing),
             _ => {
                 self.dump();
                 panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
@@ -133,12 +130,12 @@ impl Cpu {
         println!("}}");
     }
 
-    fn instruction_bne(&mut self, addressing: Addressing) {
+    fn instruction_bne(&mut self, mem: &mut Memory, addressing: Addressing) {
         if addressing != Addressing::Relative {
             panic!("Unknown BNE addressing mode: {:?}", addressing);
         }
 
-        let val = self.fetch_byte() as i8;
+        let val = self.fetch_byte(mem) as i8;
 
         if self.read_flag(Flag::Zero) {
             let addr = self.pc as i32 + val as i32;
@@ -151,45 +148,46 @@ impl Cpu {
         }
     }
 
-    fn instruction_dec(&mut self, addressing: Addressing) {
+    fn instruction_dec(&mut self, mem: &mut Memory, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::ZeroPage => self.fetch_byte() as usize,
-            Addressing::ZeroPageX => self.fetch_byte().wrapping_add(self.x) as usize,
+            Addressing::ZeroPage => self.fetch_byte(mem) as usize,
+            Addressing::ZeroPageX => self.fetch_byte(mem).wrapping_add(self.x) as usize,
             _ => panic!("Unknown DEC addressing mode: {:?}", addressing),
         };
-        let val = self.memory[addr];
-        self.memory[addr] = val.wrapping_add(!1+1);
-        self.write_flag(Flag::Zero, self.memory[addr] == 0);
-        self.write_flag(Flag::Negative, is_negative(self.memory[addr]));
+        let val = mem.read(addr);
+        let data = val.wrapping_add(!1+1);
+        mem.write(addr, data);
+        self.write_flag(Flag::Zero, data == 0);
+        self.write_flag(Flag::Negative, is_negative(data));
     }
 
-    fn instruction_dey(&mut self, _: Addressing) {
+    fn instruction_dey(&mut self, _: &mut Memory, _: Addressing) {
         self.y = self.y.wrapping_add(!1+1);
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
-    fn instruction_inx(&mut self, _: Addressing) {
+    fn instruction_inx(&mut self, _: &mut Memory, _: Addressing) {
         self.x = self.x.wrapping_add(1);
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_jmp(&mut self, addressing: Addressing) {
-        let addr = self.fetch_word();
+    fn instruction_jmp(&mut self, mem: &mut Memory, addressing: Addressing) {
+        let addr = self.fetch_word(mem);
         self.pc = addr;
     }
 
-    fn instruction_lda(&mut self, addressing: Addressing) {
+    fn instruction_lda(&mut self, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(),
+            Addressing::Immediate => self.fetch_byte(mem),
             Addressing::AbsoluteX => {
-                let word = self.fetch_word();
+                let word = self.fetch_word(mem);
                 let addr = word.wrapping_add(self.x as u16);
                 if (word & 0xff00) != (addr & 0xff00) {
                     self.instruction_cycle += 1;
                 }
-                self.memory[addr as usize]
+                mem.read(addr as usize)
             }
             _ => panic!("Unknown LDA addressing mode: {:?}", addressing),
         };
@@ -198,9 +196,9 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.a));
     }
 
-    fn instruction_ldx(&mut self, addressing: Addressing) {
+    fn instruction_ldx(&mut self, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(),
+            Addressing::Immediate => self.fetch_byte(mem),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         self.x = operand;
@@ -208,9 +206,9 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_ldy(&mut self, addressing: Addressing) {
+    fn instruction_ldy(&mut self, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(),
+            Addressing::Immediate => self.fetch_byte(mem),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         self.y = operand;
@@ -218,19 +216,19 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
-    fn instruction_sei(&mut self, _: Addressing) {
+    fn instruction_sei(&mut self, _: &mut Memory, _: Addressing) {
         self.write_flag(Flag::InterruptDisable, true)
     }
 
-    fn instruction_sta(&mut self, addressing: Addressing) {
+    fn instruction_sta(&mut self, mem: &mut Memory, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::Absolute => self.fetch_word() as usize,
+            Addressing::Absolute => self.fetch_word(mem) as usize,
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
-        self.memory[addr] = self.a;
+        mem.write(addr, self.a);
     }
 
-    fn instruction_txs(&mut self, _: Addressing) {
+    fn instruction_txs(&mut self, _: &mut Memory, _: Addressing) {
         self.s = self.x;
     }
 }
@@ -241,44 +239,45 @@ fn is_negative(v: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::MEMORY_SIZE;
     use super::MEMORY_PROGRAM_OFFSET;
     use super::Cpu;
     use super::Flag;
+    use super::Memory;
 
-    fn new_test_cpu() -> Cpu {
-        Cpu {
+    fn new_test_cpu() -> (Cpu, Memory) {
+        (Cpu {
             a: 0,
             x: 0,
             y: 0,
             pc: MEMORY_PROGRAM_OFFSET as u16,
             s: 0,
             status: 0,
-            memory: [0; MEMORY_SIZE],
             instruction_cycle: 0,
-        }
+        },
+        Memory::new()
+        )
     }
 
     #[test]
     fn instruction_bne() {
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xD0, 0x03]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, true);
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 3);
         assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 + 0x03);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xD0, 0x03]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, false);
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xD0, !0x03+1]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xD0, !0x03+1]);
         cpu.write_flag(Flag::Zero, true);
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 4);
         assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 - 0x03);
     }
@@ -286,66 +285,66 @@ mod tests {
     #[test]
     fn instruction_dec() {
         // ZeroPage; Flag behavior
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xC6, 0x10]);
-        cpu.memory[0x0010] = 0x03;
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
+        mem.write(0x0010, 0x03);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 5);
-        assert_eq!(cpu.memory[0x0010], 0x02);
+        assert_eq!(mem.read(0x0010), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xC6, 0x10]);
-        cpu.memory[0x0010] = 0x01;
-        cpu.execute_instruction();
-        assert_eq!(cpu.memory[0x0010], 0x00);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
+        mem.write(0x0010, 0x01);
+        cpu.execute_instruction(&mut mem);
+        assert_eq!(mem.read(0x0010), 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xC6, 0x10]);
-        cpu.memory[0x0010] = 0x00;
-        cpu.execute_instruction();
-        assert_eq!(cpu.memory[0x0010], !0x01+1);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
+        mem.write(0x0010, 0x00);
+        cpu.execute_instruction(&mut mem);
+        assert_eq!(mem.read(0x0010), !0x01+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
 
         // ZeroPage, X
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xD6, 0x10]);
-        cpu.memory[0x0011] = 0x03;
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xD6, 0x10]);
+        mem.write(0x0011, 0x03);
         cpu.x = 0x01;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 6);
-        assert_eq!(cpu.memory[0x0011], 0x02);
+        assert_eq!(mem.read(0x0011), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
     }
 
     #[test]
     fn instruction_dey() {
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x88]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x88]);
         cpu.y = 0x03;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.y, 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x88]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x88]);
         cpu.y = 0x01;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.y, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x88]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x88]);
         cpu.y = 0x00;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.y, !1+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -353,27 +352,27 @@ mod tests {
 
     #[test]
     fn instruction_inx() {
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xE8]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xE8]);
         cpu.x = 0x03;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.x, 0x04);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xE8]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xE8]);
         cpu.x = !1 + 1;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.x, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xE8]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xE8]);
         cpu.x = !3 + 1;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.x, !2+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -382,9 +381,9 @@ mod tests {
     #[test]
     fn instruction_jmp() {
         // Absolute
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x4C, 0x03, 0x01]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x4C, 0x03, 0x01]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 3);
         assert_eq!(cpu.pc, 0x0103);
     }
@@ -392,24 +391,24 @@ mod tests {
     #[test]
     fn instruction_lda() {
         // Test flag behavior
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xA9, 3]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xA9, 3]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xA9, 0]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xA9, 0]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xA9, !3 + 1]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xA9, !3 + 1]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.a, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -417,19 +416,19 @@ mod tests {
         // Immediate: Omission
 
         // Absolute X
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xBD, 0x10, 0x10]);
-        cpu.memory[0x1011] = 3;
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xBD, 0x10, 0x10]);
+        mem.write(0x1011, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 4);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0xBD, 0xFF, 0x10]);
-        cpu.memory[0x1100] = 3;
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0xBD, 0xFF, 0x10]);
+        mem.write(0x1100, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 5);
     }
@@ -438,24 +437,24 @@ mod tests {
     fn instruction_ldx_immediate() {
         let opcode = 0xa2;
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 3]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, 3]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.x, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 0]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, 0]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.x, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, !3 + 1]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, !3 + 1]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.x, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -465,24 +464,24 @@ mod tests {
     fn instruction_ldy_immediate() {
         let opcode = 0xa0;
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 3]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, 3]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.y, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 0]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, 0]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.y, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, !3 + 1]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, !3 + 1]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.y, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -490,9 +489,9 @@ mod tests {
 
     #[test]
     fn instruction_sei_implied() {
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x78]);
-        cpu.execute_instruction();
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x78]);
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
     }
@@ -501,20 +500,20 @@ mod tests {
     fn instruction_sta_absolute() {
         let opcode = 0x8d;
 
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![opcode, 0x11, 0x01]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![opcode, 0x11, 0x01]);
         cpu.a = 3;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 4);
-        assert_eq!(cpu.memory[0x0111], 3);
+        assert_eq!(mem.read(0x0111), 3);
     }
 
     #[test]
     fn instruction_txs_implied() {
-        let mut cpu = new_test_cpu();
-        cpu.load_program(vec![0x9a]);
+        let (mut cpu, mut mem) = new_test_cpu();
+        cpu.load_program(&mut mem, vec![0x9a]);
         cpu.x = 3;
-        cpu.execute_instruction();
+        cpu.execute_instruction(&mut mem);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.s, 3);
     }
