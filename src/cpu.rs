@@ -70,7 +70,6 @@ impl Cpu {
     fn fetch_byte(&mut self, mem: &Memory) -> u8 {
         self.pc += 1;
         mem.read((self.pc-1) as usize)
-        // self.memory[(self.pc-1) as usize]
     }
 
 
@@ -173,7 +172,7 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_jmp(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_jmp(&mut self, mem: &mut Memory, _: Addressing) {
         let addr = self.fetch_word(mem);
         self.pc = addr;
     }
