@@ -38,7 +38,7 @@ pub struct Cpu {
     status: u8, // P
 
     // State
-    instruction_cycle: u8,
+    instruction_cycle: usize,
 }
 
 impl Cpu {

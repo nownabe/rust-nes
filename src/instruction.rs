@@ -4,7 +4,7 @@ use std::fmt::{self, Formatter, Display};
 // https://www.masswerk.at/6502/6502_instruction_set.html
 // http://obelisk.me.uk/6502/reference.html
 #[derive(Debug)]
-pub struct Instruction(pub Opcode, pub Addressing, pub u8);
+pub struct Instruction(pub Opcode, pub Addressing, pub usize);
 
 #[derive(Debug)]
 pub enum Opcode {
