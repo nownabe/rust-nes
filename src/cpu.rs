@@ -60,20 +60,22 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, mem: &mut Memory) {
-        if self.instruction_cycle == 0 {
-            self.execute_instruction(mem);
-        }
-        self.instruction_cycle -= 1;
+    pub fn tick(&mut self, mem: &mut Memory) -> usize {
+        // TODO: Refactor around instruction_cycle
+        //       execute_instruction should return cycle directly.
+        //       not to use struct field.
+        self.instruction_cycle = 0;
+        self.execute_instruction(mem);
+        self.instruction_cycle
     }
 
-    fn fetch_byte(&mut self, mem: &Memory) -> u8 {
+    fn fetch_byte(&mut self, mem: &mut Memory) -> u8 {
         self.pc += 1;
         mem.read((self.pc-1) as usize)
     }
 
 
-    fn fetch_word(&mut self, mem: &Memory) -> u16 {
+    fn fetch_word(&mut self, mem: &mut Memory) -> u16 {
         let l = self.fetch_byte(mem) as u16;
         let h = self.fetch_byte(mem) as u16;
         h << 8 | l

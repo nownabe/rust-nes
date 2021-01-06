@@ -5,10 +5,22 @@ use std::io::prelude::*;
 #[macro_use]
 extern crate log;
 
+// for rendering window
+extern crate image;
+
+// https://docs.rs/piston_window/0.116.0/piston_window/index.html
+extern crate piston_window;
+use piston_window::{PistonWindow, WindowSettings, Texture, TextureContext, TextureSettings};
+use piston_window::OpenGL;
+use piston_window::G2dTexture;
+use piston_window::{RenderEvent, Transformed}; // render_args(), scale()
+use piston_window::{clear, image as piston_image};
+
 mod rom;
 mod cpu;
 mod instruction;
 mod memory;
+mod ppu;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
@@ -36,11 +48,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let program_data = rom.program_data();
     debug!("program data length = {} bytes", program_data.len());
+
     let mut mem = memory::Memory::new();
+
     let mut cpu = cpu::Cpu::new();
     cpu.load_program(&mut mem, program_data);
+
+    let mut ppu = ppu::Ppu::new();
+    ppu.init(&mut mem, rom.character_rom());
+
+    display_sprites(&ppu);
+
     loop {
-        cpu.tick(&mut mem)
+        let cycle = cpu.tick(&mut mem);
+        ppu.step(&mut mem, cycle);
     }
 
 
@@ -50,4 +71,66 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // debug!("character data size = {}", character_data_size);
 
     Ok(())
+}
+
+// https://github.com/PistonDevelopers/piston-examples/blob/master/src/paint.rs
+fn display_sprites(ppu: &ppu::Ppu) {
+    const COLORS: [image::Rgba::<u8>; 4] = [
+        image::Rgba([0, 0, 0, 255]),
+        image::Rgba([63, 63, 63, 255]),
+        image::Rgba([127, 127, 127, 255]),
+        image::Rgba([255, 255, 255, 255]),
+    ];
+
+    let scale = 4;
+    let width = 256 * scale;
+    let height = 64 * scale;
+
+    let opengl = OpenGL::V3_2;
+    let mut window: PistonWindow = WindowSettings::new("Rust NES", (width, height))
+        .exit_on_esc(true)
+        .graphics_api(opengl)
+        .build()
+        .unwrap();
+
+    let mut canvas = image::ImageBuffer::new(width, height);
+    let mut texture_context = TextureContext {
+        factory: window.factory.clone(),
+        encoder: window.factory.create_command_buffer().into(),
+    };
+
+    let mut texture: G2dTexture = Texture::from_image(
+            &mut texture_context,
+            &canvas,
+            &TextureSettings::new()
+        ).unwrap();
+
+    while let Some(e) = window.next() {
+        if let Some(_) = e.render_args() {
+            for i in 0..=0xFF {
+                let sprite = ppu.get_sprite(i);
+
+                let offset_x = (i as u32) % 32 * 8;
+                let offset_y = (i as u32) / 32 * 8;
+
+                for x in 0..8 {
+                    for y in 0..8 {
+
+                        let color = COLORS[sprite.get(x, y) as usize];
+                        canvas.put_pixel(
+                            offset_x+x as u32,
+                            offset_y+y as u32,
+                            color);
+                    }
+                }
+            }
+
+            texture.update(&mut texture_context, &canvas).unwrap();
+            window.draw_2d(&e, |c, g, device| {
+                texture_context.encoder.flush(device);
+                clear([1.0; 4], g);
+                piston_image(&texture, c.transform.scale(scale as f64, scale as f64), g);
+            });
+        }
+    }
 }
