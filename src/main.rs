@@ -104,11 +104,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    loop {
-        let cycle = cpu.tick(&mut mem);
-        ppu.step(&mut mem, cycle);
-    }
-
     Ok(())
 }
 
