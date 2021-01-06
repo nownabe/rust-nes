@@ -21,6 +21,7 @@ mod cpu;
 mod instruction;
 mod memory;
 mod ppu;
+mod nes;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env::set_var("RUST_LOG", "debug");
@@ -46,13 +47,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("ROM must be iNES format".into());
     }
 
+    let mut nes = nes::Nes::new(cassette);
+
     let mut mem = memory::Memory::new();
 
     let mut cpu = cpu::Cpu::new();
-    cpu.load_program_from_cassette(&mut mem, &cassette);
 
     let mut ppu = ppu::Ppu::new();
-    ppu.init(&mut mem, &cassette);
+    ppu.init(&mut mem, &nes.cassette);
 
     display_sprites(&ppu);
 
@@ -81,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
-            let cycle = cpu.tick(&mut mem);
+            let cycle = cpu.tick(&mut nes, &mut mem);
             ppu.step(&mut mem, cycle);
 
             for x in 0..ppu::VISIBLE_SCREEN_WIDTH {

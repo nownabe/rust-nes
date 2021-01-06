@@ -2,7 +2,7 @@ use super::instruction::Instruction;
 use super::instruction::Opcode;
 use super::instruction::Addressing;
 use super::memory::Memory;
-use super::cassette::Cassette;
+use super::nes::Nes;
 
 const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
 
@@ -55,57 +55,45 @@ impl Cpu {
         }
     }
 
-    pub fn load_program_from_cassette(&mut self, mem: &mut Memory, cassette: &Cassette) {
-        for i in 0..cassette.prg_rom.len() {
-            mem.write(MEMORY_PROGRAM_OFFSET + i, cassette.prg_rom[i]);
-        }
-    }
-
-    pub fn load_program(&mut self, mem: &mut Memory, data: Vec<u8>) {
-        for i in 0..data.len() {
-            mem.write(MEMORY_PROGRAM_OFFSET + i, data[i]);
-        }
-    }
-
-    pub fn tick(&mut self, mem: &mut Memory) -> usize {
+    pub fn tick(&mut self, nes: &mut Nes, mem: &mut Memory) -> usize {
         // TODO: Refactor around instruction_cycle
         //       execute_instruction should return cycle directly.
         //       not to use struct field.
         self.instruction_cycle = 0;
-        self.execute_instruction(mem);
+        self.execute_instruction(nes, mem);
         self.instruction_cycle
     }
 
-    fn fetch_byte(&mut self, mem: &mut Memory) -> u8 {
+    fn fetch_byte(&mut self, nes: &mut Nes, mem: &mut Memory) -> u8 {
         self.pc += 1;
-        mem.read((self.pc-1) as usize)
+        self.read(nes, mem, (self.pc-1) as u16)
     }
 
 
-    fn fetch_word(&mut self, mem: &mut Memory) -> u16 {
-        let l = self.fetch_byte(mem) as u16;
-        let h = self.fetch_byte(mem) as u16;
+    fn fetch_word(&mut self, nes: &mut Nes, mem: &mut Memory) -> u16 {
+        let l = self.fetch_byte(nes, mem) as u16;
+        let h = self.fetch_byte(nes, mem) as u16;
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, mem: &mut Memory) {
-        let inst: Instruction = self.fetch_byte(mem).into();
+    fn execute_instruction(&mut self, nes: &mut Nes, mem: &mut Memory) {
+        let inst: Instruction = self.fetch_byte(nes, mem).into();
 
         let Instruction(opcode, addressing, cycle) = inst;
         self.instruction_cycle = cycle;
 
         match opcode {
-            Opcode::BNE => self.instruction_bne(mem, addressing),
-            Opcode::DEC => self.instruction_dec(mem, addressing),
-            Opcode::DEY => self.instruction_dey(mem, addressing),
-            Opcode::INX => self.instruction_inx(mem, addressing),
-            Opcode::JMP => self.instruction_jmp(mem, addressing),
-            Opcode::LDA => self.instruction_lda(mem, addressing),
-            Opcode::LDX => self.instruction_ldx(mem, addressing),
-            Opcode::LDY => self.instruction_ldy(mem, addressing),
-            Opcode::SEI => self.instruction_sei(mem, addressing),
-            Opcode::STA => self.instruction_sta(mem, addressing),
-            Opcode::TXS => self.instruction_txs(mem, addressing),
+            Opcode::BNE => self.instruction_bne(nes, mem, addressing),
+            Opcode::DEC => self.instruction_dec(nes, mem, addressing),
+            Opcode::DEY => self.instruction_dey(nes, mem, addressing),
+            Opcode::INX => self.instruction_inx(nes, mem, addressing),
+            Opcode::JMP => self.instruction_jmp(nes, mem, addressing),
+            Opcode::LDA => self.instruction_lda(nes, mem, addressing),
+            Opcode::LDX => self.instruction_ldx(nes, mem, addressing),
+            Opcode::LDY => self.instruction_ldy(nes, mem, addressing),
+            Opcode::SEI => self.instruction_sei(nes, mem, addressing),
+            Opcode::STA => self.instruction_sta(nes, mem, addressing),
+            Opcode::TXS => self.instruction_txs(nes, mem, addressing),
             _ => {
                 self.dump();
                 panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
@@ -138,12 +126,30 @@ impl Cpu {
         println!("}}");
     }
 
-    fn instruction_bne(&mut self, mem: &mut Memory, addressing: Addressing) {
+    // https://wiki.nesdev.com/w/index.php/CPU_memory_map
+    fn read(&mut self, nes: &mut Nes, mem: &mut Memory, addr: u16) -> u8 {
+        match addr {
+            0x0000..=0x401F => mem.read(addr as usize),
+            0x4020..=0xFFFF => nes.read_program(addr),
+            _ => panic!("Out of CPU's address space: 0x{:X}", addr)
+        }
+    }
+
+    fn write(&mut self, nes: &mut Nes, mem: &mut Memory, addr: u16, data: u8) {
+        match addr {
+            0x0000..=0x401F => mem.write(addr as usize, data),
+            0x4020..=0xFFFF => panic!("Cartridge space is read only: 0x{:X}", addr),
+            _ => panic!("Out of CPU's address space: 0x{:X}", addr)
+        }
+    }
+
+
+    fn instruction_bne(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         if addressing != Addressing::Relative {
             panic!("Unknown BNE addressing mode: {:?}", addressing);
         }
 
-        let val = self.fetch_byte(mem) as i8;
+        let val = self.fetch_byte(nes, mem) as i8;
 
         if self.read_flag(Flag::Zero) {
             let addr = self.pc as i32 + val as i32;
@@ -156,46 +162,46 @@ impl Cpu {
         }
     }
 
-    fn instruction_dec(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_dec(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::ZeroPage => self.fetch_byte(mem) as usize,
-            Addressing::ZeroPageX => self.fetch_byte(mem).wrapping_add(self.x) as usize,
+            Addressing::ZeroPage => self.fetch_byte(nes, mem) as usize,
+            Addressing::ZeroPageX => self.fetch_byte(nes, mem).wrapping_add(self.x) as usize,
             _ => panic!("Unknown DEC addressing mode: {:?}", addressing),
         };
-        let val = mem.read(addr);
+        let val = self.read(nes, mem, addr as u16);
         let data = val.wrapping_add(!1+1);
-        mem.write(addr, data);
+        self.write(nes, mem, addr as u16, data);
         self.write_flag(Flag::Zero, data == 0);
         self.write_flag(Flag::Negative, is_negative(data));
     }
 
-    fn instruction_dey(&mut self, _: &mut Memory, _: Addressing) {
+    fn instruction_dey(&mut self, _: &mut Nes, _: &mut Memory, _: Addressing) {
         self.y = self.y.wrapping_add(!1+1);
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
-    fn instruction_inx(&mut self, _: &mut Memory, _: Addressing) {
+    fn instruction_inx(&mut self, _: &mut Nes, _: &mut Memory, _: Addressing) {
         self.x = self.x.wrapping_add(1);
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_jmp(&mut self, mem: &mut Memory, _: Addressing) {
-        let addr = self.fetch_word(mem);
+    fn instruction_jmp(&mut self, nes: &mut Nes, mem: &mut Memory, _: Addressing) {
+        let addr = self.fetch_word(nes, mem);
         self.pc = addr;
     }
 
-    fn instruction_lda(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_lda(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(mem),
+            Addressing::Immediate => self.fetch_byte(nes, mem),
             Addressing::AbsoluteX => {
-                let word = self.fetch_word(mem);
+                let word = self.fetch_word(nes, mem);
                 let addr = word.wrapping_add(self.x as u16);
                 if (word & 0xff00) != (addr & 0xff00) {
                     self.instruction_cycle += 1;
                 }
-                mem.read(addr as usize)
+                self.read(nes, mem, addr)
             }
             _ => panic!("Unknown LDA addressing mode: {:?}", addressing),
         };
@@ -204,9 +210,9 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.a));
     }
 
-    fn instruction_ldx(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_ldx(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(mem),
+            Addressing::Immediate => self.fetch_byte(nes, mem),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         self.x = operand;
@@ -214,9 +220,9 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.x));
     }
 
-    fn instruction_ldy(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_ldy(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         let operand = match addressing {
-            Addressing::Immediate => self.fetch_byte(mem),
+            Addressing::Immediate => self.fetch_byte(nes, mem),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         self.y = operand;
@@ -224,19 +230,19 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.y));
     }
 
-    fn instruction_sei(&mut self, _: &mut Memory, _: Addressing) {
+    fn instruction_sei(&mut self, _: &mut Nes, _: &mut Memory, _: Addressing) {
         self.write_flag(Flag::InterruptDisable, true)
     }
 
-    fn instruction_sta(&mut self, mem: &mut Memory, addressing: Addressing) {
+    fn instruction_sta(&mut self, nes: &mut Nes, mem: &mut Memory, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::Absolute => self.fetch_word(mem) as usize,
+            Addressing::Absolute => self.fetch_word(nes, mem) as usize,
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
-        mem.write(addr, self.a);
+        self.write(nes, mem, addr as u16, self.a);
     }
 
-    fn instruction_txs(&mut self, _: &mut Memory, _: Addressing) {
+    fn instruction_txs(&mut self, _: &mut Nes, _: &mut Memory, _: Addressing) {
         self.s = self.x;
     }
 }
@@ -247,6 +253,7 @@ fn is_negative(v: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
+    /*
     use super::MEMORY_PROGRAM_OFFSET;
     use super::Cpu;
     use super::Flag;
@@ -525,4 +532,5 @@ mod tests {
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.s, 3);
     }
+    */
 }
