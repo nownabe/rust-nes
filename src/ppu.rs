@@ -6,8 +6,11 @@ const VRAM_SIZE: usize = 0x0800;
 const OAM_SIZE: usize = 0x0100;
 const CHARACTER_ROM_SIZE: usize = 0x2000;
 
-const VISIBLE_SCREEN_WIDTH: usize = 256;
-const VISIBLE_SCREEN_HEIGHT: usize = 240;
+pub const VISIBLE_SCREEN_WIDTH: usize = 256;
+pub const VISIBLE_SCREEN_HEIGHT: usize = 240;
+
+const SPRITE_WIDTH: usize = 8;
+const SPRITE_HEIGHT: usize = 8;
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 const CYCLES_PER_SCANLINE: usize = 341;
@@ -48,14 +51,14 @@ impl From<Register> for usize {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Sprite {
-    data: [[u8; 8]; 8],
+    data: [[u8; SPRITE_WIDTH]; SPRITE_HEIGHT],
 }
 
 impl Sprite {
     pub fn new(data: &[u8]) -> Self {
         let mut sprite = [[0; 8]; 8];
-        for y in 0..8 {
-            for x in 0..8 {
+        for y in 0..SPRITE_HEIGHT {
+            for x in 0..SPRITE_WIDTH {
                 sprite[y][x] = (data[y] & 1 << (7-x)) >> (7-x);
                 sprite[y][x] += (data[y+8] & 1 << (7-x)) >> (7-x) << 1;
             }
@@ -75,7 +78,7 @@ pub struct Ppu {
     cycle_counter: usize,
     batch_counter: usize,
     pub character_rom: [u8; CHARACTER_ROM_SIZE],
-    screen: [[[u8; 3]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
+    pub screen: [[[u8; 3]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
     sprites: [Sprite; 0x200],
 }
 
@@ -88,7 +91,7 @@ impl Ppu {
             cycle_counter: 0,
             batch_counter: 0,
             character_rom: [0; CHARACTER_ROM_SIZE],
-            screen: [[[0; 3]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
+            screen: [[[0, 0, 0]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
             sprites: [Sprite{data:[[0;8]; 8]}; 0x200],
         }
     }
@@ -163,7 +166,9 @@ impl Ppu {
     // ref. https://wiki.nesdev.com/w/index.php/PPU_memory_map
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0x0000..=0x1FFF => panic!("Write access is forbidden: PPU's 0x{:X}", addr),
+            0x0000..=0x1FFF => {
+                //panic!("Write access is forbidden: PPU's 0x{:X}", addr),
+            },
             0x2000..=0x2FFF => {
                 self.write_vram(addr, data);
             },
@@ -179,7 +184,7 @@ impl Ppu {
     fn increment_ppu_address(&mut self, mem: &mut Memory) {
         // TODO: Consider PPUCTRL (bit 2 of 0x2000)
         let lower_addr = self.read_register(mem, Register::PPUADDR);
-        self.write_register(mem, Register::PPUADDR, lower_addr + 1);
+        self.write_register(mem, Register::PPUADDR, lower_addr.wrapping_add(1));
     }
 
     fn operate_vram(&mut self, mem: &mut Memory) {
@@ -215,14 +220,26 @@ impl Ppu {
             return
         }
 
-        self.render_batch_lines(mem);
+        self.render_batch_lines();
         self.batch_counter += 1;
     }
 
-    fn render_batch_lines(&mut self, mem: &Memory) {
+    fn render_batch_lines(&mut self) {
+        const COLORS: [[u8; 3]; 4] = [[0, 0, 0], [63, 63, 63], [127, 127, 127], [255, 255, 255]];
+
         let offset = self.batch_counter * (RENDERING_BATCH_LINES/16);
         for i in 0..(RENDERING_BATCH_LINES/16) {
             let sprite_id = self.read((0x2000+offset+i) as u16);
+            let sprite = self.sprites[sprite_id as usize];
+
+            let offset_x = (i * SPRITE_WIDTH) % VISIBLE_SCREEN_WIDTH;
+            let offset_y = i / (VISIBLE_SCREEN_WIDTH / SPRITE_WIDTH) * SPRITE_HEIGHT;
+
+            for x in 0..SPRITE_WIDTH {
+                for y in 0..SPRITE_HEIGHT {
+                    self.screen[offset_y + y][offset_x + x] = COLORS[sprite.get(x, y) as usize];
+                }
+            }
         }
     }
 }

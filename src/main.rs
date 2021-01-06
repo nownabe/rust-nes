@@ -59,16 +59,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     display_sprites(&ppu);
 
+    let scale = 4;
+    let width = ppu::VISIBLE_SCREEN_WIDTH as u32 * scale;
+    let height = ppu::VISIBLE_SCREEN_HEIGHT as u32 * scale;
+
+    let opengl = OpenGL::V3_2;
+    let mut window: PistonWindow = WindowSettings::new("Rust NES", (width, height))
+        .exit_on_esc(true)
+        .graphics_api(opengl)
+        .build()
+        .unwrap();
+
+    let mut canvas = image::ImageBuffer::new(width, height);
+    let mut texture_context = TextureContext {
+        factory: window.factory.clone(),
+        encoder: window.factory.create_command_buffer().into(),
+    };
+
+    let mut texture: G2dTexture = Texture::from_image(
+            &mut texture_context,
+            &canvas,
+            &TextureSettings::new()
+        ).unwrap();
+
+    while let Some(e) = window.next() {
+        if let Some(_) = e.render_args() {
+            let cycle = cpu.tick(&mut mem);
+            ppu.step(&mut mem, cycle);
+
+            let screen = ppu.screen;
+
+            for x in 0..ppu::VISIBLE_SCREEN_WIDTH {
+                for y in 0..ppu::VISIBLE_SCREEN_HEIGHT {
+                    let color = ppu.screen[y][x];
+                    canvas.put_pixel(
+                        x as u32,
+                        y as u32,
+                        image::Rgba([color[0], color[1], color[2], 255])
+                    );
+                }
+            }
+
+            texture.update(&mut texture_context, &canvas).unwrap();
+            window.draw_2d(&e, |c, g, device| {
+                texture_context.encoder.flush(device);
+                clear([1.0; 4], g);
+                piston_image(&texture, c.transform.scale(scale as f64, scale as f64), g);
+            });
+        }
+    }
+
     loop {
         let cycle = cpu.tick(&mut mem);
         ppu.step(&mut mem, cycle);
     }
-
-
-    // let program_data_size = &buf[4];
-    // debug!("program data size = {}", program_data_size);
-    // let character_data_size = &buf[5];
-    // debug!("character data size = {}", character_data_size);
 
     Ok(())
 }
