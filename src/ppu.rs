@@ -52,6 +52,17 @@ pub struct Sprite {
 }
 
 impl Sprite {
+    pub fn new(data: &[u8]) -> Self {
+        let mut sprite = [[0; 8]; 8];
+        for y in 0..8 {
+            for x in 0..8 {
+                sprite[y][x] = (data[y] & 1 << (7-x)) >> (7-x);
+                sprite[y][x] += (data[y+8] & 1 << (7-x)) >> (7-x) << 1;
+            }
+        }
+        Self { data: sprite }
+    }
+
     pub fn get(&self, x: usize, y: usize) -> u8 {
         self.data[y][x]
     }
@@ -97,14 +108,8 @@ impl Ppu {
         }
 
         for i in 0..(character_rom.len()/16) {
-            for j in 0..8 {
-                for k in 0..8 {
-                    self.sprites[i].data[j][k] = (character_rom[i*16+j] & (1<<(7-k))) >> (7-k);
-                    self.sprites[i].data[j][k] += (character_rom[i*16+j+8] & (1<<(7-k))) >> (7-k) << 1;
-                }
-            }
+            self.sprites[i] = Sprite::new(&character_rom[i*16..i*16+16]);
         }
-
     }
 
     pub fn get_sprite(&self, id: u8) -> Sprite {
