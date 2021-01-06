@@ -1,7 +1,10 @@
 use super::memory::Memory;
 use super::memory::PpuAddrState;
 use super::memory::PpuDataState;
-use super::cassette::Cassette;
+use super::nes::Nes;
+use super::cassette::Sprite;
+use super::cassette::SPRITE_WIDTH;
+use super::cassette::SPRITE_HEIGHT;
 
 const VRAM_SIZE: usize = 0x0800;
 const OAM_SIZE: usize = 0x0100;
@@ -9,9 +12,6 @@ const CHARACTER_ROM_SIZE: usize = 0x2000;
 
 pub const VISIBLE_SCREEN_WIDTH: usize = 256;
 pub const VISIBLE_SCREEN_HEIGHT: usize = 240;
-
-const SPRITE_WIDTH: usize = 8;
-const SPRITE_HEIGHT: usize = 8;
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 const CYCLES_PER_SCANLINE: usize = 341;
@@ -50,27 +50,6 @@ impl From<Register> for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Sprite {
-    data: [[u8; SPRITE_WIDTH]; SPRITE_HEIGHT],
-}
-
-impl Sprite {
-    pub fn new(data: &[u8]) -> Self {
-        let mut sprite = [[0; 8]; 8];
-        for y in 0..SPRITE_HEIGHT {
-            for x in 0..SPRITE_WIDTH {
-                sprite[y][x] = (data[y] & 1 << (7-x)) >> (7-x);
-                sprite[y][x] += (data[y+8] & 1 << (7-x)) >> (7-x) << 1;
-            }
-        }
-        Self { data: sprite }
-    }
-
-    pub fn get(&self, x: usize, y: usize) -> u8 {
-        self.data[y][x]
-    }
-}
 
 pub struct Ppu {
     vram: [u8; VRAM_SIZE],
@@ -78,9 +57,7 @@ pub struct Ppu {
     ppu_addr: u16,
     cycle_counter: usize,
     batch_counter: usize,
-    pub character_rom: [u8; CHARACTER_ROM_SIZE],
     pub screen: [[[u8; 3]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
-    sprites: [Sprite; 0x200],
 }
 
 impl Ppu {
@@ -91,14 +68,12 @@ impl Ppu {
             ppu_addr: 0,
             cycle_counter: 0,
             batch_counter: 0,
-            character_rom: [0; CHARACTER_ROM_SIZE],
             screen: [[[0, 0, 0]; VISIBLE_SCREEN_WIDTH]; VISIBLE_SCREEN_HEIGHT],
-            sprites: [Sprite{data:[[0;8]; 8]}; 0x200],
         }
     }
 
     // https://wiki.nesdev.com/w/index.php/PPU_power_up_state
-    pub fn init(&mut self, mem: &mut Memory, cassette: &Cassette) {
+    pub fn init(&mut self, mem: &mut Memory) {
         self.write_register(mem, Register::PPUCTRL, 0x00);
         self.write_register(mem, Register::PPUMASK, 0x00);
         self.write_register(mem, Register::PPUSTATUS, 0b10100000);
@@ -106,27 +81,13 @@ impl Ppu {
         self.write_register(mem, Register::PPUSCROLL, 0x00);
         self.write_register(mem, Register::PPUADDR, 0x00);
         self.write_register(mem, Register::PPUDATA, 0x00);
-
-        /*
-        for i in 0..character_rom.len() {
-            self.character_rom[i] = character_rom[i];
-        }
-        */
-
-        for i in 0..(cassette.chr_rom.len()/16) {
-            self.sprites[i] = Sprite::new(&cassette.chr_rom[i*16..i*16+16]);
-        }
     }
 
-    pub fn get_sprite(&self, id: u8) -> Sprite {
-        self.sprites[id as usize]
-    }
-
-    pub fn step(&mut self, mem: &mut Memory, cpu_cycle: usize) {
+    pub fn step(&mut self, nes: &mut Nes, mem: &mut Memory, cpu_cycle: usize) {
         self.cycle_counter += cpu_cycle * 3;
 
-        self.operate_vram(mem);
-        self.render(mem);
+        self.operate_vram(nes, mem);
+        self.render(nes, mem);
 
         if self.cycle_counter >= CYCLES_PER_FRAME {
             self.cycle_counter -= CYCLES_PER_FRAME;
@@ -151,9 +112,9 @@ impl Ppu {
     }
 
     // ref. https://wiki.nesdev.com/w/index.php/PPU_memory_map
-    fn read(&mut self, addr: u16) -> u8 {
+    fn read(&mut self, nes: &mut Nes, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x1FFF => self.character_rom[addr as usize],
+            0x0000..=0x1FFF => nes.read_chr_rom(addr),
             0x2000..=0x2FFF => {
                 self.read_vram(addr)
             },
@@ -190,7 +151,7 @@ impl Ppu {
         self.write_register(mem, Register::PPUADDR, lower_addr.wrapping_add(1));
     }
 
-    fn operate_vram(&mut self, mem: &mut Memory) {
+    fn operate_vram(&mut self, nes: &mut Nes, mem: &mut Memory) {
         match mem.ppu_addr_state() {
             PpuAddrState::Higher => {
                 self.ppu_addr = self.ppu_addr | (self.read_register(mem, Register::PPUADDR) as u16) << 8;
@@ -203,7 +164,7 @@ impl Ppu {
 
         match mem.ppu_data_state() {
             PpuDataState::Read => {
-                let data = self.read(self.ppu_addr);
+                let data = self.read(nes, self.ppu_addr);
                 self.write_register(mem, Register::PPUDATA, data);
                 self.increment_ppu_address(mem);
             },
@@ -215,7 +176,7 @@ impl Ppu {
         }
     }
 
-    fn render(&mut self, mem: &Memory) {
+    fn render(&mut self, nes: &mut Nes, mem: &Memory) {
         if self.batch_counter >= RENDERING_BATCH_NUM {
             return
         }
@@ -223,17 +184,17 @@ impl Ppu {
             return
         }
 
-        self.render_batch_lines();
+        self.render_batch_lines(nes);
         self.batch_counter += 1;
     }
 
-    fn render_batch_lines(&mut self) {
+    fn render_batch_lines(&mut self, nes: &mut Nes) {
         const COLORS: [[u8; 3]; 4] = [[0, 0, 0], [63, 63, 63], [127, 127, 127], [255, 255, 255]];
 
         let offset = self.batch_counter * (RENDERING_BATCH_LINES/16);
         for i in 0..(RENDERING_BATCH_LINES/16) {
-            let sprite_id = self.read((0x2000+offset+i) as u16);
-            let sprite = self.sprites[sprite_id as usize];
+            let sprite_id = self.read(nes, (0x2000+offset+i) as u16);
+            let sprite = nes.get_sprite(sprite_id);
 
             let offset_x = (i * SPRITE_WIDTH) % VISIBLE_SCREEN_WIDTH;
             let offset_y = i / (VISIBLE_SCREEN_WIDTH / SPRITE_WIDTH) * SPRITE_HEIGHT;

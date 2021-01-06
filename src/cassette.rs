@@ -13,6 +13,7 @@ pub struct Cassette {
     trainer: Option<[u8; TRAINER_SIZE]>,
     pub prg_rom: Vec<u8>,
     pub chr_rom: Vec<u8>,
+    pub sprites: Vec<Sprite>,
 }
 
 impl Cassette {
@@ -46,13 +47,23 @@ impl Cassette {
         debug!("CHR ROM size = {} units ({} bytes)", header[5], chr_end - chr_start);
         debug!("CHR ROM start address = 0x{:X}", chr_start);
         debug!("CHR ROM end address = 0x{:X}", chr_end);
+        let chr_rom = data[chr_start..chr_end].to_vec();
 
         Self {
             header,
             trainer,
             prg_rom: data[prg_start..prg_end].to_vec(),
             chr_rom: data[chr_start..chr_end].to_vec(),
+            sprites: Self::parse_sprites(chr_rom),
         }
+    }
+
+    fn parse_sprites(chr_rom: Vec<u8>) -> Vec<Sprite> {
+        let mut sprites = Vec::new();
+        for i in 0..(chr_rom.len()/16) {
+            sprites.push(Sprite::new(&chr_rom[i*16..i*16+16]));
+        }
+        sprites
     }
 
     pub fn is_ines(&self) -> bool {
@@ -60,3 +71,27 @@ impl Cassette {
     }
 }
 
+pub const SPRITE_WIDTH: usize = 8;
+pub const SPRITE_HEIGHT: usize = 8;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Sprite {
+    data: [[u8; SPRITE_WIDTH]; SPRITE_HEIGHT],
+}
+
+impl Sprite {
+    pub fn new(data: &[u8]) -> Self {
+        let mut sprite = [[0; 8]; 8];
+        for y in 0..SPRITE_HEIGHT {
+            for x in 0..SPRITE_WIDTH {
+                sprite[y][x] = (data[y] & 1 << (7-x)) >> (7-x);
+                sprite[y][x] += (data[y+8] & 1 << (7-x)) >> (7-x) << 1;
+            }
+        }
+        Self { data: sprite }
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> u8 {
+        self.data[y][x]
+    }
+}

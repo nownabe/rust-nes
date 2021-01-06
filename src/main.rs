@@ -54,9 +54,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cpu = cpu::Cpu::new();
 
     let mut ppu = ppu::Ppu::new();
-    ppu.init(&mut mem, &nes.cassette);
+    ppu.init(&mut mem);
 
-    display_sprites(&ppu);
+    display_sprites(&nes);
 
     let scale = 4;
     let width = ppu::VISIBLE_SCREEN_WIDTH as u32 * scale;
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
             let cycle = cpu.tick(&mut nes, &mut mem);
-            ppu.step(&mut mem, cycle);
+            ppu.step(&mut nes, &mut mem, cycle);
 
             for x in 0..ppu::VISIBLE_SCREEN_WIDTH {
                 for y in 0..ppu::VISIBLE_SCREEN_HEIGHT {
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // https://github.com/PistonDevelopers/piston-examples/blob/master/src/paint.rs
-fn display_sprites(ppu: &ppu::Ppu) {
+fn display_sprites(nes: &nes::Nes) {
     const COLORS: [image::Rgba::<u8>; 4] = [
         image::Rgba([0, 0, 0, 255]),
         image::Rgba([63, 63, 63, 255]),
@@ -144,7 +144,7 @@ fn display_sprites(ppu: &ppu::Ppu) {
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
             for i in 0..=0xFF {
-                let sprite = ppu.get_sprite(i);
+                let sprite = nes.get_sprite(i);
 
                 let offset_x = (i as u32) % 32 * 8;
                 let offset_y = (i as u32) / 32 * 8;
