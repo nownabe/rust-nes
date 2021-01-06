@@ -74,7 +74,7 @@ impl Cassette {
 pub const SPRITE_WIDTH: usize = 8;
 pub const SPRITE_HEIGHT: usize = 8;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Sprite {
     data: [[u8; SPRITE_WIDTH]; SPRITE_HEIGHT],
 }

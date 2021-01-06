@@ -24,7 +24,7 @@ impl Nes {
         self.cassette.chr_rom[addr as usize]
     }
 
-    pub fn get_sprite(&self, id: u8) -> Sprite {
-        self.cassette.sprites[id as usize]
+    pub fn get_sprite(&self, id: u8) -> &Sprite {
+        &self.cassette.sprites[id as usize]
     }
 }
