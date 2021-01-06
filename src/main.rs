@@ -46,9 +46,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("ROM must be iNES format".into());
     }
 
-    let program_data = rom.program_data();
-    debug!("program data length = {} bytes", program_data.len());
-
     let mut mem = memory::Memory::new();
 
     let mut cpu = cpu::Cpu::new();
@@ -86,8 +83,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(_) = e.render_args() {
             let cycle = cpu.tick(&mut mem);
             ppu.step(&mut mem, cycle);
-
-            let screen = ppu.screen;
 
             for x in 0..ppu::VISIBLE_SCREEN_WIDTH {
                 for y in 0..ppu::VISIBLE_SCREEN_HEIGHT {
