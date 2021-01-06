@@ -2,6 +2,7 @@ use super::instruction::Instruction;
 use super::instruction::Opcode;
 use super::instruction::Addressing;
 use super::memory::Memory;
+use super::cassette::Cassette;
 
 const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
 
@@ -51,6 +52,12 @@ impl Cpu {
             s: 0xfd,
             status: 0x34,
             instruction_cycle: 0,
+        }
+    }
+
+    pub fn load_program_from_cassette(&mut self, mem: &mut Memory, cassette: &Cassette) {
+        for i in 0..cassette.prg_rom.len() {
+            mem.write(MEMORY_PROGRAM_OFFSET + i, cassette.prg_rom[i]);
         }
     }
 

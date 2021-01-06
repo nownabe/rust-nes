@@ -16,7 +16,7 @@ use piston_window::G2dTexture;
 use piston_window::{RenderEvent, Transformed}; // render_args(), scale()
 use piston_window::{clear, image as piston_image};
 
-mod rom;
+mod cassette;
 mod cpu;
 mod instruction;
 mod memory;
@@ -39,9 +39,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = Vec::new();
     let _ = f.read_to_end(&mut buf)?;
 
-    let rom = rom::ROM::new(buf);
+    let cassette = cassette::Cassette::new(buf);
 
-    if !rom.is_ines() {
+    if !cassette.is_ines() {
         error!("ROM must be iNES format");
         return Err("ROM must be iNES format".into());
     }
@@ -52,10 +52,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut mem = memory::Memory::new();
 
     let mut cpu = cpu::Cpu::new();
-    cpu.load_program(&mut mem, program_data);
+    cpu.load_program_from_cassette(&mut mem, &cassette);
 
     let mut ppu = ppu::Ppu::new();
-    ppu.init(&mut mem, rom.character_rom());
+    ppu.init(&mut mem, &cassette);
 
     display_sprites(&ppu);
 

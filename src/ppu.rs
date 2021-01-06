@@ -1,6 +1,7 @@
 use super::memory::Memory;
 use super::memory::PpuAddrState;
 use super::memory::PpuDataState;
+use super::cassette::Cassette;
 
 const VRAM_SIZE: usize = 0x0800;
 const OAM_SIZE: usize = 0x0100;
@@ -97,7 +98,7 @@ impl Ppu {
     }
 
     // https://wiki.nesdev.com/w/index.php/PPU_power_up_state
-    pub fn init(&mut self, mem: &mut Memory, character_rom: Vec<u8>) {
+    pub fn init(&mut self, mem: &mut Memory, cassette: &Cassette) {
         self.write_register(mem, Register::PPUCTRL, 0x00);
         self.write_register(mem, Register::PPUMASK, 0x00);
         self.write_register(mem, Register::PPUSTATUS, 0b10100000);
@@ -106,12 +107,14 @@ impl Ppu {
         self.write_register(mem, Register::PPUADDR, 0x00);
         self.write_register(mem, Register::PPUDATA, 0x00);
 
+        /*
         for i in 0..character_rom.len() {
             self.character_rom[i] = character_rom[i];
         }
+        */
 
-        for i in 0..(character_rom.len()/16) {
-            self.sprites[i] = Sprite::new(&character_rom[i*16..i*16+16]);
+        for i in 0..(cassette.chr_rom.len()/16) {
+            self.sprites[i] = Sprite::new(&cassette.chr_rom[i*16..i*16+16]);
         }
     }
 
