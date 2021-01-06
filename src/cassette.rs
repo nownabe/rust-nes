@@ -10,7 +10,7 @@ const CHR_ROM_UNIT_SIZE: usize = 0x2000; // 8192 bytes
 
 pub struct Cassette {
     header: [u8; INES_HEADER_SIZE],
-    trainer: Option<[u8; TRAINER_SIZE]>,
+    // trainer: Option<[u8; TRAINER_SIZE]>,
     pub prg_rom: Vec<u8>,
     pub chr_rom: Vec<u8>,
     pub sprites: Vec<Sprite>,
@@ -25,18 +25,12 @@ impl Cassette {
         }
 
         // Trainer, if present
-        let trainer = if data[6] & 0b00000100 == 0b00000100 {
-            // TODO:
-            Some([0; TRAINER_SIZE])
-        } else {
-            None
-        };
+        if data[6] & 0b00000100 == 0b00000100 {
+            panic!("Trainer is not implement yet");
+        }
 
         // Parse PRG ROM data
-        let prg_start = match trainer {
-            Some(_) => INES_HEADER_SIZE + 512,
-            None => INES_HEADER_SIZE,
-        };
+        let prg_start = INES_HEADER_SIZE;
         let prg_end = prg_start + PRG_ROM_UNIT_SIZE * (header[4] as usize);
         debug!("PRG ROM size = {} units ({} bytes)", header[4], prg_end - prg_start);
         debug!("PRG ROM start address = 0x{:X}", prg_start);
@@ -49,16 +43,17 @@ impl Cassette {
         debug!("CHR ROM end address = 0x{:X}", chr_end);
         let chr_rom = data[chr_start..chr_end].to_vec();
 
+        let sprites = Self::parse_sprites(&chr_rom);
+
         Self {
             header,
-            trainer,
             prg_rom: data[prg_start..prg_end].to_vec(),
-            chr_rom: data[chr_start..chr_end].to_vec(),
-            sprites: Self::parse_sprites(chr_rom),
+            chr_rom,
+            sprites,
         }
     }
 
-    fn parse_sprites(chr_rom: Vec<u8>) -> Vec<Sprite> {
+    fn parse_sprites(chr_rom: &Vec<u8>) -> Vec<Sprite> {
         let mut sprites = Vec::new();
         for i in 0..(chr_rom.len()/16) {
             sprites.push(Sprite::new(&chr_rom[i*16..i*16+16]));
