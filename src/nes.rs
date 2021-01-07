@@ -18,6 +18,20 @@ impl Nes {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn new_for_test(prg_rom: Vec<u8>) -> Self {
+        let len = prg_rom.len();
+        let mut data = [vec![0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], prg_rom].concat();
+        for _ in 0..(0x4000-len) {
+            data.push(0);
+        }
+
+        Self {
+            cassette: Cassette::new(data),
+            ppu_register_bus: PpuRegisterBus::new(),
+        }
+    }
+
     pub fn read_program(&self, addr: u16) -> u8 {
         self.cassette.prg_rom[addr as usize]
     }

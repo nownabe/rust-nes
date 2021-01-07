@@ -266,49 +266,49 @@ fn is_negative(v: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    /*
+    use super::RAM_SIZE;
     use super::PRG_ROM_BASE;
     use super::Cpu;
     use super::Flag;
-    use super::Memory;
+    use super::Nes;
 
-    fn new_test_cpu() -> (Cpu, Memory) {
-        (Cpu {
-            a: 0,
-            x: 0,
-            y: 0,
-            pc: PRG_ROM_BASE,
-            s: 0,
-            status: 0,
-            instruction_cycle: 0,
-        },
-        Memory::new()
+    fn new_test_cpu(prg_rom: Vec<u8>) -> (Cpu, Nes) {
+        (
+            Cpu {
+                a: 0,
+                x: 0,
+                y: 0,
+                pc: PRG_ROM_BASE,
+                s: 0,
+                status: 0,
+                ram: [0; RAM_SIZE],
+                instruction_cycle: 0,
+            },
+            Nes::new_for_test(prg_rom)
         )
     }
 
     #[test]
     fn instruction_bne() {
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xD0, 0x03]);
-        cpu.write_flag(Flag::Zero, true);
-        cpu.execute_instruction(&mut mem);
-        assert_eq!(cpu.instruction_cycle, 3);
-        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 + 0x03);
-
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xD0, 0x03]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, false);
-        cpu.execute_instruction(&mut mem);
-        assert_eq!(cpu.instruction_cycle, 2);
-        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2);
+        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 + 0x03);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xD0, !0x03+1]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, true);
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, !0x03+1]);
+        cpu.write_flag(Flag::Zero, false);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 4);
-        assert_eq!(cpu.pc, MEMORY_PROGRAM_OFFSET as u16 + 2 - 0x03);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
+    /*
 
     #[test]
     fn instruction_dec() {
