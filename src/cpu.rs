@@ -131,7 +131,10 @@ impl Cpu {
     // https://wiki.nesdev.com/w/index.php/CPU_memory_map
     fn read(&mut self, nes: &mut Nes, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x1FFF => self.read_ram(addr),
+            0x0000..=0x07FF => self.read_ram(addr),
+            0x0800..=0x0FFF => self.read_ram(addr - 0x0800),
+            0x1000..=0x17FF => self.read_ram(addr - 0x1000),
+            0x1800..=0x1FFF => self.read_ram(addr - 0x1800),
             0x2000..=0x2007 => nes.ppu_register_bus.cpu_read(addr),
             0x2008..=0x401F => { warn!("Reading CPU address 0x2008-0x401F is not implemented"); 0 },
             0x4020..=0x7FFF => { warn!("Reading CPU address 0x4020-0x7FFF is not implemented"); 0 }, // 拡張ROM, 拡張RAM
@@ -141,7 +144,10 @@ impl Cpu {
 
     fn write(&mut self, nes: &mut Nes, addr: u16, data: u8) {
         match addr {
-            0x0000..=0x1FFF => self.write_ram(addr, data),
+            0x0000..=0x07FF => self.write_ram(addr, data),
+            0x0800..=0x0FFF => self.write_ram(addr - 0x0800, data),
+            0x1000..=0x17FF => self.write_ram(addr - 0x1000, data),
+            0x1800..=0x1FFF => self.write_ram(addr - 0x1800, data),
             0x2000..=0x2007 => nes.ppu_register_bus.cpu_write(addr, data),
             0x2008..=0x401F => warn!("Writing CPU address 0x2008-0x401F is not implemented"),
             0x4020..=0xFFFF => panic!("Cartridge space is read only: 0x{:X}", addr),
