@@ -80,8 +80,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
-            let cycle = cpu.tick(&mut nes, &mut mem);
-            ppu.step(&mut nes, cycle);
+            let mut rendered = false;
+            while !rendered {
+                let cycle = cpu.tick(&mut nes, &mut mem);
+                rendered = ppu.step(&mut nes, cycle);
+            }
 
             for x in 0..ppu::VISIBLE_SCREEN_WIDTH {
                 for y in 0..ppu::VISIBLE_SCREEN_HEIGHT {

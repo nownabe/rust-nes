@@ -85,16 +85,18 @@ impl Ppu {
         }
     }
 
-    pub fn step(&mut self, nes: &mut Nes, cpu_cycle: usize) {
+    pub fn step(&mut self, nes: &mut Nes, cpu_cycle: usize) -> bool {
         self.cycle_counter += cpu_cycle * 3;
 
         self.handle_io(nes);
-        self.render(nes);
+        let rendered = self.render(nes);
 
         if self.cycle_counter >= CYCLES_PER_FRAME {
             self.cycle_counter -= CYCLES_PER_FRAME;
             self.batch_counter = 0;
         }
+
+        rendered
     }
 
     pub fn read_vram(&self, addr: u16) -> u8 {
@@ -171,20 +173,26 @@ impl Ppu {
         }
     }
 
-    fn render(&mut self, nes: &mut Nes) {
+    fn render(&mut self, nes: &mut Nes) -> bool {
         if self.batch_counter >= RENDERING_BATCH_NUM {
-            return
+            return false
         }
         if self.cycle_counter < CYCLES_PER_SCANLINE * RENDERING_BATCH_LINES * (self.batch_counter + 1) {
-            return
+            return false
         }
 
         self.render_batch_lines(nes);
         self.batch_counter += 1;
+
+        true
     }
 
     fn render_batch_lines(&mut self, nes: &mut Nes) {
         const COLORS: [[u8; 3]; 4] = [[0, 0, 0], [63, 63, 63], [127, 127, 127], [255, 255, 255]];
+
+        debug!("Rendering lines: {} - {}",
+               self.batch_counter * RENDERING_BATCH_LINES,
+               (self.batch_counter + 1) * RENDERING_BATCH_LINES - 1);
 
         let offset = self.batch_counter * (RENDERING_BATCH_LINES/16);
         for i in 0..(RENDERING_BATCH_LINES/16) {
