@@ -110,10 +110,10 @@ impl Ppu {
         match addr {
             0x0000..=0x1FFF => nes.read_chr_rom(addr),
             0x2000..=0x2FFF => {
-                self.read_vram(addr)
+                self.read_vram(addr - 0x2000)
             },
             0x3000..=0x3EFF => { // mirrors of 0x2000 - 0x2eff
-                self.read_vram(addr)
+                self.read_vram(addr - 0x3000)
             },
             0x3F00..=0x3F1F => { debug!("Palette RAM is not implemented"); 0 },
             0x3F20..=0x3FFF => { debug!("Palette RAM is not implemented"); 0 },
