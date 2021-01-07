@@ -58,17 +58,6 @@ impl Cpu {
         self.execute_instruction(nes)
     }
 
-    fn fetch_byte(&mut self, nes: &mut Nes) -> u8 {
-        self.pc += 1;
-        self.read(nes, self.pc-1)
-    }
-
-    fn fetch_word(&mut self, nes: &mut Nes) -> u16 {
-        let l = self.fetch_byte(nes) as u16;
-        let h = self.fetch_byte(nes) as u16;
-        h << 8 | l
-    }
-
     fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
         let inst: Instruction = self.fetch_byte(nes).into();
 
@@ -93,20 +82,6 @@ impl Cpu {
         };
 
         cycle + additional_cycle
-    }
-
-    pub fn read_flag(&self, f: Flag) -> bool {
-        let bit: u8 = f.into();
-        self.status & bit == bit
-    }
-
-    fn write_flag(&mut self, f: Flag, v: bool) {
-        let bit: u8 = f.into();
-        if v {
-            self.status |= bit
-        } else {
-            self.status &= !bit
-        }
     }
 
     fn dump(&self) {
@@ -152,6 +127,31 @@ impl Cpu {
 
     fn write_ram(&mut self, addr: u16, data: u8) {
         self.ram[addr as usize] = data;
+    }
+
+    fn read_flag(&self, f: Flag) -> bool {
+        let bit: u8 = f.into();
+        self.status & bit == bit
+    }
+
+    fn write_flag(&mut self, f: Flag, v: bool) {
+        let bit: u8 = f.into();
+        if v {
+            self.status |= bit
+        } else {
+            self.status &= !bit
+        }
+    }
+
+    fn fetch_byte(&mut self, nes: &mut Nes) -> u8 {
+        self.pc += 1;
+        self.read(nes, self.pc-1)
+    }
+
+    fn fetch_word(&mut self, nes: &mut Nes) -> u16 {
+        let l = self.fetch_byte(nes) as u16;
+        let h = self.fetch_byte(nes) as u16;
+        h << 8 | l
     }
 
     fn instruction_bne(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
