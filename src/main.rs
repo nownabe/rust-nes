@@ -19,7 +19,6 @@ use piston_window::{clear, image as piston_image};
 mod cassette;
 mod cpu;
 mod instruction;
-mod memory;
 mod ppu;
 mod ppu_register_bus;
 mod nes;
@@ -49,7 +48,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut nes = nes::Nes::new(cassette);
-    let mut mem = memory::Memory::new();
     let mut cpu = cpu::Cpu::new();
     let mut ppu = ppu::Ppu::new();
 
@@ -82,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(_) = e.render_args() {
             let mut rendered = false;
             while !rendered {
-                let cycle = cpu.tick(&mut nes, &mut mem);
+                let cycle = cpu.tick(&mut nes);
                 rendered = ppu.step(&mut nes, cycle);
             }
 
