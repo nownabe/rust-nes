@@ -153,7 +153,7 @@ impl Cpu {
 
         let val = self.fetch_byte(nes, mem) as i8;
 
-        if self.read_flag(Flag::Zero) {
+        if !self.read_flag(Flag::Zero) {
             let addr = self.pc as i32 + val as i32;
             if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
                 self.instruction_cycle += 1;
@@ -241,6 +241,7 @@ impl Cpu {
             Addressing::Absolute => self.fetch_word(nes, mem) as usize,
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
+        debug!("STA {:04X} (A = {:02X})", addr, self.a);
         self.write(nes, mem, addr as u16, self.a);
     }
 
