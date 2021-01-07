@@ -39,9 +39,6 @@ pub struct Cpu {
     status: u8, // P
 
     ram: [u8; RAM_SIZE],
-
-    // State
-    instruction_cycle: usize,
 }
 
 impl Cpu {
@@ -54,17 +51,11 @@ impl Cpu {
             s: 0xfd,
             status: 0x34,
             ram: [0; RAM_SIZE],
-            instruction_cycle: 0,
         }
     }
 
     pub fn tick(&mut self, nes: &mut Nes) -> usize {
-        // TODO: Refactor around instruction_cycle
-        //       execute_instruction should return cycle directly.
-        //       not to use struct field.
-        self.instruction_cycle = 0;
-        self.execute_instruction(nes);
-        self.instruction_cycle
+        self.execute_instruction(nes)
     }
 
     fn fetch_byte(&mut self, nes: &mut Nes) -> u8 {
@@ -78,13 +69,12 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn execute_instruction(&mut self, nes: &mut Nes) {
+    fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
         let inst: Instruction = self.fetch_byte(nes).into();
 
         let Instruction(opcode, addressing, cycle) = inst;
-        self.instruction_cycle = cycle;
 
-        match opcode {
+        let additional_cycle = match opcode {
             Opcode::BNE => self.instruction_bne(nes, addressing),
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
@@ -100,7 +90,9 @@ impl Cpu {
                 self.dump();
                 panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
             }
-        }
+        };
+
+        cycle + additional_cycle
     }
 
     pub fn read_flag(&self, f: Flag) -> bool {
@@ -162,25 +154,29 @@ impl Cpu {
         self.ram[addr as usize] = data;
     }
 
-    fn instruction_bne(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_bne(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         if addressing != Addressing::Relative {
             panic!("Unknown BNE addressing mode: {:?}", addressing);
         }
 
         let val = self.fetch_byte(nes) as i8;
 
+        let mut additional_cycle = 0;
+
         if !self.read_flag(Flag::Zero) {
             let addr = self.pc as i32 + val as i32;
             if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
-                self.instruction_cycle += 1;
+                additional_cycle += 1;
             }
 
             self.pc = addr as u16;
-            self.instruction_cycle += 1;
+            additional_cycle += 1;
         }
+
+        additional_cycle
     }
 
-    fn instruction_dec(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_dec(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let addr = match addressing {
             Addressing::ZeroPage => self.fetch_byte(nes) as u16,
             Addressing::ZeroPageX => self.fetch_byte(nes).wrapping_add(self.x) as u16,
@@ -191,33 +187,42 @@ impl Cpu {
         self.write(nes, addr, data);
         self.write_flag(Flag::Zero, data == 0);
         self.write_flag(Flag::Negative, is_negative(data));
+
+        0
     }
 
-    fn instruction_dey(&mut self, _: &mut Nes, _: Addressing) {
+    fn instruction_dey(&mut self, _: &mut Nes, _: Addressing) -> usize {
         self.y = self.y.wrapping_add(!1+1);
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
+
+        0
     }
 
-    fn instruction_inx(&mut self, _: &mut Nes, _: Addressing) {
+    fn instruction_inx(&mut self, _: &mut Nes, _: Addressing) -> usize {
         self.x = self.x.wrapping_add(1);
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
+
+        0
     }
 
-    fn instruction_jmp(&mut self, nes: &mut Nes, _: Addressing) {
+    fn instruction_jmp(&mut self, nes: &mut Nes, _: Addressing) -> usize {
         let addr = self.fetch_word(nes);
         self.pc = addr;
+
+        0
     }
 
-    fn instruction_lda(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_lda(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        let mut additional_cycle = 0;
         let operand = match addressing {
             Addressing::Immediate => self.fetch_byte(nes),
             Addressing::AbsoluteX => {
                 let word = self.fetch_word(nes);
                 let addr = word.wrapping_add(self.x as u16);
                 if (word & 0xff00) != (addr & 0xff00) {
-                    self.instruction_cycle += 1;
+                    additional_cycle += 1;
                 }
                 self.read(nes, addr)
             }
@@ -226,9 +231,11 @@ impl Cpu {
         self.a = operand;
         self.write_flag(Flag::Zero, self.a == 0);
         self.write_flag(Flag::Negative, is_negative(self.a));
+
+        additional_cycle
     }
 
-    fn instruction_ldx(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_ldx(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let operand = match addressing {
             Addressing::Immediate => self.fetch_byte(nes),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
@@ -236,9 +243,11 @@ impl Cpu {
         self.x = operand;
         self.write_flag(Flag::Zero, self.x == 0);
         self.write_flag(Flag::Negative, is_negative(self.x));
+
+        0
     }
 
-    fn instruction_ldy(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_ldy(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let operand = match addressing {
             Addressing::Immediate => self.fetch_byte(nes),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
@@ -246,23 +255,31 @@ impl Cpu {
         self.y = operand;
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
+
+        0
     }
 
-    fn instruction_sei(&mut self, _: &mut Nes, _: Addressing) {
-        self.write_flag(Flag::InterruptDisable, true)
+    fn instruction_sei(&mut self, _: &mut Nes, _: Addressing) -> usize {
+        self.write_flag(Flag::InterruptDisable, true);
+
+        0
     }
 
-    fn instruction_sta(&mut self, nes: &mut Nes, addressing: Addressing) {
+    fn instruction_sta(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let addr = match addressing {
             Addressing::Absolute => self.fetch_word(nes),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         debug!("STA {:04X} (A = {:02X})", addr, self.a);
         self.write(nes, addr, self.a);
+
+        0
     }
 
-    fn instruction_txs(&mut self, _: &mut Nes, _: Addressing) {
+    fn instruction_txs(&mut self, _: &mut Nes, _: Addressing) -> usize {
         self.s = self.x;
+
+        0
     }
 }
 
@@ -288,7 +305,6 @@ mod tests {
                 s: 0,
                 status: 0,
                 ram: [0; RAM_SIZE],
-                instruction_cycle: 0,
             },
             Nes::new_for_test(prg_rom)
         )
@@ -298,20 +314,17 @@ mod tests {
     fn instruction_bne() {
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, false);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 + 0x03);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, 0x03]);
         cpu.write_flag(Flag::Zero, true);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, !0x03+1]);
         cpu.write_flag(Flag::Zero, false);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 4);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
 
@@ -320,22 +333,21 @@ mod tests {
         // ZeroPage; Flag behavior
         let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
         cpu.write(&mut nes, 0x0010, 0x03);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 5);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
         assert_eq!(cpu.read(&mut nes, 0x0010), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
         cpu.write(&mut nes, 0x0010, 0x01);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
         assert_eq!(cpu.read(&mut nes, 0x0010), 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
         cpu.write(&mut nes, 0x0010, 0x00);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
         assert_eq!(cpu.read(&mut nes, 0x0010), !0x01+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -344,8 +356,7 @@ mod tests {
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD6, 0x10]);
         cpu.write(&mut nes, 0x0011, 0x03);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 6);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
         assert_eq!(cpu.read(&mut nes, 0x0011), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
@@ -355,22 +366,21 @@ mod tests {
     fn instruction_dey() {
         let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x03;
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x01;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x00;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, !1+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -380,22 +390,21 @@ mod tests {
     fn instruction_inx() {
         let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = 0x03;
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, 0x04);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = !1 + 1;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = !3 + 1;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, !2+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -405,8 +414,7 @@ mod tests {
     fn instruction_jmp() {
         // Absolute
         let (mut cpu, mut nes) = new_test_cpu(vec![0x4C, 0x03, 0x01]);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
         assert_eq!(cpu.pc, 0x0103);
     }
 
@@ -414,20 +422,19 @@ mod tests {
     fn instruction_lda() {
         // Test flag behavior
         let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, 3]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.a, 3);
-        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, 0]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, !3 + 1]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.a, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -438,16 +445,14 @@ mod tests {
         let (mut cpu, mut nes) = new_test_cpu(vec![0xBD, 0x10, 0x10]);
         cpu.write(&mut nes, 0x1011, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.a, 3);
-        assert_eq!(cpu.instruction_cycle, 4);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xBD, 0xFF, 0x10]);
         cpu.write(&mut nes, 0x1100, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
         assert_eq!(cpu.a, 3);
-        assert_eq!(cpu.instruction_cycle, 5);
     }
 
     #[test]
@@ -455,20 +460,19 @@ mod tests {
         let opcode = 0xa2;
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 3]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, 3);
-        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, !3 + 1]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.x, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -479,20 +483,19 @@ mod tests {
         let opcode = 0xa0;
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 3]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, 3);
-        assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, !3 + 1]);
-        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.y, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -501,8 +504,7 @@ mod tests {
     #[test]
     fn instruction_sei_implied() {
         let (mut cpu, mut nes) = new_test_cpu(vec![0x78]);
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
     }
 
@@ -512,8 +514,7 @@ mod tests {
 
         let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0x11, 0x01]);
         cpu.a = 3;
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 4);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.read(&mut nes, 0x0111), 3);
     }
 
@@ -521,8 +522,7 @@ mod tests {
     fn instruction_txs_implied() {
         let (mut cpu, mut nes) = new_test_cpu(vec![0x9a]);
         cpu.x = 3;
-        cpu.execute_instruction(&mut nes);
-        assert_eq!(cpu.instruction_cycle, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.s, 3);
     }
 }
