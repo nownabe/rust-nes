@@ -6,8 +6,7 @@ use super::ppu_register_bus::PpuRegisterBus;
  * Container for sharable hardwares, such as PPU registers and cassette.
  */
 pub struct Nes {
-    // TODO: Make cassette private
-    pub cassette: Cassette,
+    cassette: Cassette,
     pub ppu_register_bus: PpuRegisterBus,
 }
 
