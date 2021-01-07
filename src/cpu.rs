@@ -72,6 +72,7 @@ impl Cpu {
             Opcode::LDA => self.instruction_lda(nes, addressing),
             Opcode::LDX => self.instruction_ldx(nes, addressing),
             Opcode::LDY => self.instruction_ldy(nes, addressing),
+            Opcode::NOP => self.instruction_nop(nes, addressing),
             Opcode::SEI => self.instruction_sei(nes, addressing),
             Opcode::STA => self.instruction_sta(nes, addressing),
             Opcode::TXS => self.instruction_txs(nes, addressing),
@@ -256,6 +257,10 @@ impl Cpu {
         self.write_flag(Flag::Zero, self.y == 0);
         self.write_flag(Flag::Negative, is_negative(self.y));
 
+        0
+    }
+
+    fn instruction_nop(&mut self, _: &mut Nes, _: Addressing) -> usize {
         0
     }
 

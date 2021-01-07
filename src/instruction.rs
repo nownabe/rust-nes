@@ -103,6 +103,10 @@ impl From<u8> for Instruction {
             0x78 => Instruction(Opcode::SEI, Addressing::Implied, 2),
             0x8D => Instruction(Opcode::STA, Addressing::Absolute, 4),
             0x9A => Instruction(Opcode::TXS, Addressing::Implied, 2),
+
+            // Unofficial instructions
+            0x02 => Instruction(Opcode::NOP, Addressing::Implied, 2),
+
             _ => Instruction(Opcode::UNKNOWN(opcode), Addressing::UNKNOWN, 0),
         }
     }
