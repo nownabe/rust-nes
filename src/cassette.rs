@@ -4,7 +4,7 @@
 
 const INES_HEADER_SIZE: usize = 16;
 const INES_HEADER_CONSTANT: [u8; 4] = [0x4e, 0x45, 0x53, 0x1a];
-const TRAINER_SIZE: usize = 0x0200; // 512 bytes
+// const TRAINER_SIZE: usize = 0x0200; // 512 bytes
 const PRG_ROM_UNIT_SIZE: usize = 0x4000; // 16384 bytes
 const CHR_ROM_UNIT_SIZE: usize = 0x2000; // 8192 bytes
 
