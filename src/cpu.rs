@@ -176,13 +176,13 @@ impl Cpu {
 
     fn instruction_dec(&mut self, nes: &mut Nes, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::ZeroPage => self.fetch_byte(nes) as usize,
-            Addressing::ZeroPageX => self.fetch_byte(nes).wrapping_add(self.x) as usize,
+            Addressing::ZeroPage => self.fetch_byte(nes) as u16,
+            Addressing::ZeroPageX => self.fetch_byte(nes).wrapping_add(self.x) as u16,
             _ => panic!("Unknown DEC addressing mode: {:?}", addressing),
         };
-        let val = self.read(nes, addr as u16);
+        let val = self.read(nes, addr);
         let data = val.wrapping_add(!1+1);
-        self.write(nes, addr as u16, data);
+        self.write(nes, addr, data);
         self.write_flag(Flag::Zero, data == 0);
         self.write_flag(Flag::Negative, is_negative(data));
     }
@@ -248,11 +248,11 @@ impl Cpu {
 
     fn instruction_sta(&mut self, nes: &mut Nes, addressing: Addressing) {
         let addr = match addressing {
-            Addressing::Absolute => self.fetch_word(nes) as usize,
+            Addressing::Absolute => self.fetch_word(nes),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
         debug!("STA {:04X} (A = {:02X})", addr, self.a);
-        self.write(nes, addr as u16, self.a);
+        self.write(nes, addr, self.a);
     }
 
     fn instruction_txs(&mut self, _: &mut Nes, _: Addressing) {
