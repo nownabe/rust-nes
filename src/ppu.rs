@@ -8,6 +8,7 @@ const OAM_SIZE: usize = 0x0100;
 
 pub const VISIBLE_SCREEN_WIDTH: usize = 256;
 pub const VISIBLE_SCREEN_HEIGHT: usize = 240;
+const VISIBLE_SCREEN_SPRITES: usize = VISIBLE_SCREEN_WIDTH / SPRITE_WIDTH;
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 const CYCLES_PER_SCANLINE: usize = 341;
@@ -15,7 +16,8 @@ const SCANLINES_PER_FRAME: usize = 262;
 const CYCLES_PER_FRAME: usize = CYCLES_PER_SCANLINE * SCANLINES_PER_FRAME;
 
 // 16ラインずつ処理
-const RENDERING_BATCH_LINES: usize = 16;
+const RENDERING_BATCH_SPRITES: usize = VISIBLE_SCREEN_SPRITES * 2;
+const RENDERING_BATCH_LINES: usize = RENDERING_BATCH_SPRITES / VISIBLE_SCREEN_SPRITES * SPRITE_HEIGHT;
 const RENDERING_BATCH_NUM: usize = VISIBLE_SCREEN_HEIGHT / RENDERING_BATCH_LINES;
 
 pub enum Register {
@@ -190,17 +192,13 @@ impl Ppu {
     fn render_batch_lines(&mut self, nes: &mut Nes) {
         const COLORS: [[u8; 3]; 4] = [[0, 0, 0], [63, 63, 63], [127, 127, 127], [255, 255, 255]];
 
-        debug!("Rendering lines: {} - {}",
-               self.batch_counter * RENDERING_BATCH_LINES,
-               (self.batch_counter + 1) * RENDERING_BATCH_LINES - 1);
-
-        let offset = self.batch_counter * (RENDERING_BATCH_LINES/16);
-        for i in 0..(RENDERING_BATCH_LINES/16) {
-            let sprite_id = self.read(nes, (0x2000+offset+i) as u16);
+        let sprite_offset = self.batch_counter * RENDERING_BATCH_SPRITES;
+        for i in 0..RENDERING_BATCH_SPRITES {
+            let sprite_id = self.read(nes, (0x2000+sprite_offset+i) as u16);
             let sprite = nes.get_sprite(sprite_id);
 
-            let offset_x = (i * SPRITE_WIDTH) % VISIBLE_SCREEN_WIDTH;
-            let offset_y = i / (VISIBLE_SCREEN_WIDTH / SPRITE_WIDTH) * SPRITE_HEIGHT;
+            let offset_x = i % VISIBLE_SCREEN_SPRITES * SPRITE_WIDTH;
+            let offset_y = i / VISIBLE_SCREEN_SPRITES * SPRITE_HEIGHT + self.batch_counter * RENDERING_BATCH_LINES;
 
             for x in 0..SPRITE_WIDTH {
                 for y in 0..SPRITE_HEIGHT {
