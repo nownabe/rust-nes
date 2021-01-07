@@ -4,7 +4,7 @@ use super::instruction::Addressing;
 use super::memory::Memory;
 use super::nes::Nes;
 
-const MEMORY_PROGRAM_OFFSET: usize = 0x8000;
+const PRG_ROM_BASE: u16 = 0x8000;
 
 #[derive(Debug)]
 pub enum Flag {
@@ -48,7 +48,7 @@ impl Cpu {
             a: 0,
             x: 0,
             y: 0,
-            pc: MEMORY_PROGRAM_OFFSET as u16,
+            pc: PRG_ROM_BASE,
             s: 0xfd,
             status: 0x34,
             instruction_cycle: 0,
@@ -68,7 +68,6 @@ impl Cpu {
         self.pc += 1;
         self.read(nes, mem, (self.pc-1) as u16)
     }
-
 
     fn fetch_word(&mut self, nes: &mut Nes, mem: &mut Memory) -> u16 {
         let l = self.fetch_byte(nes, mem) as u16;
@@ -132,7 +131,8 @@ impl Cpu {
             0x0000..=0x1FFF => mem.read(addr as usize),
             0x2000..=0x2007 => nes.ppu_register_bus.cpu_read(addr),
             0x2008..=0x401F => mem.read(addr as usize),
-            0x4020..=0xFFFF => nes.read_program(addr),
+            0x4020..=0x7FFF => mem.read(addr as usize), // 拡張ROM, 拡張RAM
+            PRG_ROM_BASE..=0xFFFF => nes.read_program(addr-PRG_ROM_BASE),
         }
     }
 
@@ -256,7 +256,7 @@ fn is_negative(v: u8) -> bool {
 #[cfg(test)]
 mod tests {
     /*
-    use super::MEMORY_PROGRAM_OFFSET;
+    use super::PRG_ROM_BASE;
     use super::Cpu;
     use super::Flag;
     use super::Memory;
@@ -266,7 +266,7 @@ mod tests {
             a: 0,
             x: 0,
             y: 0,
-            pc: MEMORY_PROGRAM_OFFSET as u16,
+            pc: PRG_ROM_BASE,
             s: 0,
             status: 0,
             instruction_cycle: 0,
