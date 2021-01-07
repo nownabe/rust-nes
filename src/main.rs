@@ -25,7 +25,7 @@ mod ppu_register_bus;
 mod nes;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env::set_var("RUST_LOG", "debug");
+    env::set_var("RUST_LOG", "debug,gfx_device_gl=warn,winit=warn");
     env_logger::init();
 
     let args: Vec<String> = env::args().collect();
