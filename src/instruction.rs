@@ -71,7 +71,7 @@ pub enum Opcode {
 impl Display for Opcode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::UNKNOWN(byte) => write!(f, "UNKNWON(0x{:X})", byte),
+            Self::UNKNOWN(byte) => write!(f, "UNKNWON(0x{:02X})", byte),
             _ => write!(f, "{:?}", self),
         }
     }
