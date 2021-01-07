@@ -1,5 +1,6 @@
 use super::cassette::Cassette;
 use super::cassette::Sprite;
+use super::ppu_register_bus::PpuRegisterBus;
 
 /*
  * Container for sharable hardwares, such as PPU registers and cassette.
@@ -7,12 +8,14 @@ use super::cassette::Sprite;
 pub struct Nes {
     // TODO: Make cassette private
     pub cassette: Cassette,
+    pub ppu_register_bus: PpuRegisterBus,
 }
 
 impl Nes {
     pub fn new(cassette: Cassette) -> Self {
         Self {
             cassette,
+            ppu_register_bus: PpuRegisterBus::new(),
         }
     }
 

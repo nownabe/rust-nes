@@ -21,6 +21,7 @@ mod cpu;
 mod instruction;
 mod memory;
 mod ppu;
+mod ppu_register_bus;
 mod nes;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,13 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut nes = nes::Nes::new(cassette);
-
     let mut mem = memory::Memory::new();
-
     let mut cpu = cpu::Cpu::new();
-
     let mut ppu = ppu::Ppu::new();
-    ppu.init(&mut mem);
 
     display_sprites(&nes);
 
@@ -84,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(e) = window.next() {
         if let Some(_) = e.render_args() {
             let cycle = cpu.tick(&mut nes, &mut mem);
-            ppu.step(&mut nes, &mut mem, cycle);
+            ppu.step(&mut nes, cycle);
 
             for x in 0..ppu::VISIBLE_SCREEN_WIDTH {
                 for y in 0..ppu::VISIBLE_SCREEN_HEIGHT {

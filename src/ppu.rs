@@ -1,14 +1,10 @@
-use super::memory::Memory;
-use super::memory::PpuAddrState;
-use super::memory::PpuDataState;
 use super::nes::Nes;
-use super::cassette::Sprite;
 use super::cassette::SPRITE_WIDTH;
 use super::cassette::SPRITE_HEIGHT;
+use super::ppu_register_bus::PpuDataStatus;
 
 const VRAM_SIZE: usize = 0x0800;
 const OAM_SIZE: usize = 0x0100;
-const CHARACTER_ROM_SIZE: usize = 0x2000;
 
 pub const VISIBLE_SCREEN_WIDTH: usize = 256;
 pub const VISIBLE_SCREEN_HEIGHT: usize = 240;
@@ -50,6 +46,23 @@ impl From<Register> for usize {
     }
 }
 
+impl From<u16> for Register {
+    fn from(a: u16) -> Self {
+        match a {
+            0x2000 => Register::PPUCTRL,
+            0x2001 => Register::PPUMASK,
+            0x2002 => Register::PPUSTATUS,
+            0x2003 => Register::OAMADDR,
+            0x2004 => Register::OAMDATA,
+            0x2005 => Register::PPUSCROLL,
+            0x2006 => Register::PPUADDR,
+            0x2007 => Register::PPUDATA,
+            0x4014 => Register::OAMDMA,
+            _ => panic!("Invalid address for PPU Register: {:04X}", a),
+        }
+    }
+}
+
 
 pub struct Ppu {
     vram: [u8; VRAM_SIZE],
@@ -72,22 +85,11 @@ impl Ppu {
         }
     }
 
-    // https://wiki.nesdev.com/w/index.php/PPU_power_up_state
-    pub fn init(&mut self, mem: &mut Memory) {
-        self.write_register(mem, Register::PPUCTRL, 0x00);
-        self.write_register(mem, Register::PPUMASK, 0x00);
-        self.write_register(mem, Register::PPUSTATUS, 0b10100000);
-        self.write_register(mem, Register::OAMADDR, 0x00);
-        self.write_register(mem, Register::PPUSCROLL, 0x00);
-        self.write_register(mem, Register::PPUADDR, 0x00);
-        self.write_register(mem, Register::PPUDATA, 0x00);
-    }
-
-    pub fn step(&mut self, nes: &mut Nes, mem: &mut Memory, cpu_cycle: usize) {
+    pub fn step(&mut self, nes: &mut Nes, cpu_cycle: usize) {
         self.cycle_counter += cpu_cycle * 3;
 
-        self.operate_vram(nes, mem);
-        self.render(nes, mem);
+        self.handle_io(nes);
+        self.render(nes);
 
         if self.cycle_counter >= CYCLES_PER_FRAME {
             self.cycle_counter -= CYCLES_PER_FRAME;
@@ -101,14 +103,6 @@ impl Ppu {
 
     pub fn write_vram(&mut self, addr: u16, data: u8) {
         self.vram[addr as usize] = data;
-    }
-
-    fn read_register(&self, mem: &mut Memory, r: Register) -> u8 {
-        mem.read(r.into())
-    }
-
-    fn write_register(&self, mem: &mut Memory, r: Register, data: u8) {
-        mem.write(r.into(), data);
     }
 
     // ref. https://wiki.nesdev.com/w/index.php/PPU_memory_map
@@ -145,38 +139,35 @@ impl Ppu {
         }
     }
 
-    fn increment_ppu_address(&mut self, mem: &mut Memory) {
+    fn increment_ppu_addr(&mut self) {
         // TODO: Consider PPUCTRL (bit 2 of 0x2000)
-        let lower_addr = self.read_register(mem, Register::PPUADDR);
-        self.write_register(mem, Register::PPUADDR, lower_addr.wrapping_add(1));
+        self.ppu_addr = self.ppu_addr.wrapping_add(1);
     }
 
-    fn operate_vram(&mut self, nes: &mut Nes, mem: &mut Memory) {
-        match mem.ppu_addr_state() {
-            PpuAddrState::Higher => {
-                self.ppu_addr = self.ppu_addr | (self.read_register(mem, Register::PPUADDR) as u16) << 8;
-            },
-            PpuAddrState::Lower => {
-                self.ppu_addr = self.ppu_addr | self.read_register(mem, Register::PPUADDR) as u16
-            },
-            PpuAddrState::None => {},
+    fn handle_io(&mut self, nes: &mut Nes) {
+        if let Some(addr) = nes.ppu_register_bus.ppu_read(Register::PPUADDR) {
+            self.ppu_addr = addr;
         }
 
-        match mem.ppu_data_state() {
-            PpuDataState::Read => {
+        match nes.ppu_register_bus.ppu_data_status() {
+            PpuDataStatus::Read => {
                 let data = self.read(nes, self.ppu_addr);
-                self.write_register(mem, Register::PPUDATA, data);
-                self.increment_ppu_address(mem);
+                nes.ppu_register_bus.ppu_write(Register::PPUDATA, data);
+                debug!("PPU copied {:02X} into PPUDATA from VRAM[{:04X}]", data, self.ppu_addr);
+                self.increment_ppu_addr();
             },
-            PpuDataState::Written => {
-                self.write(self.ppu_addr, self.read_register(mem, Register::PPUDATA));
-                self.increment_ppu_address(mem);
+            PpuDataStatus::Written => {
+                if let Some(data) = nes.ppu_register_bus.ppu_read(Register::PPUDATA) {
+                    self.write(self.ppu_addr, data as u8);
+                    debug!("PPU copied {:02X} from PPUDATA into VRAM[{:04X}]", data as u8, self.ppu_addr);
+                }
+                self.increment_ppu_addr();
             },
-            PpuDataState::None => {},
+            PpuDataStatus::None => {},
         }
     }
 
-    fn render(&mut self, nes: &mut Nes, mem: &Memory) {
+    fn render(&mut self, nes: &mut Nes) {
         if self.batch_counter >= RENDERING_BATCH_NUM {
             return
         }

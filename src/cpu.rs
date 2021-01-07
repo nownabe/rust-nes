@@ -129,17 +129,19 @@ impl Cpu {
     // https://wiki.nesdev.com/w/index.php/CPU_memory_map
     fn read(&mut self, nes: &mut Nes, mem: &mut Memory, addr: u16) -> u8 {
         match addr {
-            0x0000..=0x401F => mem.read(addr as usize),
+            0x0000..=0x1FFF => mem.read(addr as usize),
+            0x2000..=0x2007 => nes.ppu_register_bus.cpu_read(addr),
+            0x2008..=0x401F => mem.read(addr as usize),
             0x4020..=0xFFFF => nes.read_program(addr),
-            _ => panic!("Out of CPU's address space: 0x{:X}", addr)
         }
     }
 
     fn write(&mut self, nes: &mut Nes, mem: &mut Memory, addr: u16, data: u8) {
         match addr {
-            0x0000..=0x401F => mem.write(addr as usize, data),
+            0x0000..=0x1FFF => mem.write(addr as usize, data),
+            0x2000..=0x2007 => nes.ppu_register_bus.cpu_write(addr, data),
+            0x2008..=0x401F => mem.write(addr as usize, data),
             0x4020..=0xFFFF => panic!("Cartridge space is read only: 0x{:X}", addr),
-            _ => panic!("Out of CPU's address space: 0x{:X}", addr)
         }
     }
 
