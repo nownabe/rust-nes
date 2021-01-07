@@ -314,71 +314,63 @@ mod tests {
         assert_eq!(cpu.instruction_cycle, 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
-    /*
 
     #[test]
     fn instruction_dec() {
         // ZeroPage; Flag behavior
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
-        mem.write(0x0010, 0x03);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
+        cpu.write(&mut nes, 0x0010, 0x03);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 5);
-        assert_eq!(mem.read(0x0010), 0x02);
+        assert_eq!(cpu.read(&mut nes, 0x0010), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
-        mem.write(0x0010, 0x01);
-        cpu.execute_instruction(&mut mem);
-        assert_eq!(mem.read(0x0010), 0x00);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
+        cpu.write(&mut nes, 0x0010, 0x01);
+        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.read(&mut nes, 0x0010), 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xC6, 0x10]);
-        mem.write(0x0010, 0x00);
-        cpu.execute_instruction(&mut mem);
-        assert_eq!(mem.read(0x0010), !0x01+1);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC6, 0x10]);
+        cpu.write(&mut nes, 0x0010, 0x00);
+        cpu.execute_instruction(&mut nes);
+        assert_eq!(cpu.read(&mut nes, 0x0010), !0x01+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
 
         // ZeroPage, X
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xD6, 0x10]);
-        mem.write(0x0011, 0x03);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD6, 0x10]);
+        cpu.write(&mut nes, 0x0011, 0x03);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 6);
-        assert_eq!(mem.read(0x0011), 0x02);
+        assert_eq!(cpu.read(&mut nes, 0x0011), 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
     }
 
     #[test]
     fn instruction_dey() {
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x88]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x03;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.y, 0x02);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x88]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x01;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.y, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x88]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x88]);
         cpu.y = 0x00;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.y, !1+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -386,27 +378,24 @@ mod tests {
 
     #[test]
     fn instruction_inx() {
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xE8]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = 0x03;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.x, 0x04);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xE8]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = !1 + 1;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.x, 0x00);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xE8]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xE8]);
         cpu.x = !3 + 1;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.x, !2+1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -415,9 +404,8 @@ mod tests {
     #[test]
     fn instruction_jmp() {
         // Absolute
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x4C, 0x03, 0x01]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x4C, 0x03, 0x01]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 3);
         assert_eq!(cpu.pc, 0x0103);
     }
@@ -425,24 +413,21 @@ mod tests {
     #[test]
     fn instruction_lda() {
         // Test flag behavior
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xA9, 3]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, 3]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xA9, 0]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, 0]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.a, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xA9, !3 + 1]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xA9, !3 + 1]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.a, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -450,19 +435,17 @@ mod tests {
         // Immediate: Omission
 
         // Absolute X
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xBD, 0x10, 0x10]);
-        mem.write(0x1011, 3);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xBD, 0x10, 0x10]);
+        cpu.write(&mut nes, 0x1011, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 4);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0xBD, 0xFF, 0x10]);
-        mem.write(0x1100, 3);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xBD, 0xFF, 0x10]);
+        cpu.write(&mut nes, 0x1100, 3);
         cpu.x = 0x01;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.a, 3);
         assert_eq!(cpu.instruction_cycle, 5);
     }
@@ -471,24 +454,21 @@ mod tests {
     fn instruction_ldx_immediate() {
         let opcode = 0xa2;
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, 3]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 3]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.x, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, 0]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.x, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, !3 + 1]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, !3 + 1]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.x, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -498,24 +478,21 @@ mod tests {
     fn instruction_ldy_immediate() {
         let opcode = 0xa0;
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, 3]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 3]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.y, 3);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, 0]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.y, 0);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), false);
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, !3 + 1]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, !3 + 1]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.y, !3 + 1);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
@@ -523,9 +500,8 @@ mod tests {
 
     #[test]
     fn instruction_sei_implied() {
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x78]);
-        cpu.execute_instruction(&mut mem);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x78]);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
     }
@@ -534,22 +510,19 @@ mod tests {
     fn instruction_sta_absolute() {
         let opcode = 0x8d;
 
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![opcode, 0x11, 0x01]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![opcode, 0x11, 0x01]);
         cpu.a = 3;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 4);
-        assert_eq!(mem.read(0x0111), 3);
+        assert_eq!(cpu.read(&mut nes, 0x0111), 3);
     }
 
     #[test]
     fn instruction_txs_implied() {
-        let (mut cpu, mut mem) = new_test_cpu();
-        cpu.load_program(&mut mem, vec![0x9a]);
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x9a]);
         cpu.x = 3;
-        cpu.execute_instruction(&mut mem);
+        cpu.execute_instruction(&mut nes);
         assert_eq!(cpu.instruction_cycle, 2);
         assert_eq!(cpu.s, 3);
     }
-    */
 }
