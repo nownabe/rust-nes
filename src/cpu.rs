@@ -64,6 +64,7 @@ impl Cpu {
         let Instruction(opcode, addressing, cycle) = inst;
 
         let additional_cycle = match opcode {
+            Opcode::ASL => self.instruction_asl(nes, addressing),
             Opcode::BNE => self.instruction_bne(nes, addressing),
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
@@ -153,6 +154,22 @@ impl Cpu {
         let l = self.fetch_byte(nes) as u16;
         let h = self.fetch_byte(nes) as u16;
         h << 8 | l
+    }
+
+    fn instruction_asl(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        let addr = match addressing {
+            Addressing::ZeroPage => self.fetch_byte(nes) as u16,
+            _ => panic!("Unknown ASL addressing mode: {:?}", addressing),
+        };
+
+        let data = self.read(nes, addr);
+        let val = data.wrapping_shl(1);
+        self.write(nes, addr, val);
+        self.write_flag(Flag::Carry, data & 0b10000000 == 0b10000000);
+        self.write_flag(Flag::Zero, self.a == 0);
+        self.write_flag(Flag::Negative, is_negative(val));
+
+        0
     }
 
     fn instruction_bne(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -319,6 +336,34 @@ mod tests {
             },
             Nes::new_for_test(prg_rom)
         )
+    }
+
+    #[test]
+    fn instruction_asl() {
+        // ZeroPage; Flag behavior
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x06, 0x10]);
+        cpu.write(&mut nes, 0x10, 2);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read(&mut nes, 0x10), 4);
+        assert_eq!(cpu.read_flag(Flag::Carry), false);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x06, 0x10]);
+        cpu.write(&mut nes, 0x10, 0b10000000);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read(&mut nes, 0x10), 0);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x06, 0x10]);
+        cpu.write(&mut nes, 0x10, 0b01000000);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read(&mut nes, 0x10), 0b10000000);
+        assert_eq!(cpu.read_flag(Flag::Carry), false);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
     }
 
     #[test]
