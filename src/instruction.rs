@@ -1,8 +1,12 @@
 use std::convert::From;
 use std::fmt::{self, Formatter, Display};
 
-// https://www.masswerk.at/6502/6502_instruction_set.html
-// http://obelisk.me.uk/6502/reference.html
+/*
+ * https://www.masswerk.at/6502/6502_instruction_set.html
+ * http://obelisk.me.uk/6502/reference.html
+ * http://www.oxyron.de/html/opcodes02.html - Unofficial opcodes
+ */
+
 #[derive(Debug)]
 pub struct Instruction(pub Opcode, pub Addressing, pub usize);
 
@@ -106,6 +110,7 @@ impl From<u8> for Instruction {
 
             // Unofficial instructions
             0x02 => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
 
             _ => Instruction(Opcode::UNKNOWN(opcode), Addressing::UNKNOWN, 0),
         }

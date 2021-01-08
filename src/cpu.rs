@@ -260,7 +260,13 @@ impl Cpu {
         0
     }
 
-    fn instruction_nop(&mut self, _: &mut Nes, _: Addressing) -> usize {
+    fn instruction_nop(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        match addressing {
+            Addressing::Implied => {},
+            Addressing::Immediate => { self.fetch_byte(nes); },
+            _ => panic!("Unknown addressing mode: {:?}", addressing),
+        }
+
         0
     }
 
