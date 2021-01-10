@@ -14,19 +14,30 @@ pub enum Flag {
     Decimal,
     Overflow,
     Negative,
+    Break,
 }
 
 impl From<Flag> for u8 {
     fn from(f: Flag) -> Self {
         match f {
-            Flag::Carry => 0b00000001,
-            Flag::Zero => 0b0000010,
-            Flag::InterruptDisable => 0b0000100,
-            Flag::Decimal => 0b00001000,
-            Flag::Overflow => 0b01000000,
-            Flag::Negative => 0b10000000,
+            Flag::Carry             => 0b00000001,
+            Flag::Zero              => 0b00000010,
+            Flag::InterruptDisable  => 0b00000100,
+            Flag::Decimal           => 0b00001000,
+            Flag::Break             => 0b00010000,
+            Flag::Overflow          => 0b01000000,
+            Flag::Negative          => 0b10000000,
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Interruption {
+    RESET,
+    IRQ,
+    BRK,
+    NMI,
+    None,
 }
 
 pub struct Cpu {
@@ -35,7 +46,7 @@ pub struct Cpu {
     x: u8,
     y: u8,
     pc: u16,
-    s: u8,
+    s: u16,
     status: u8, // P
 
     ram: [u8; RAM_SIZE],
@@ -48,14 +59,39 @@ impl Cpu {
             x: 0,
             y: 0,
             pc: PRG_ROM_BASE,
-            s: 0xfd,
+            s: 0x00fd,
             status: 0x34,
             ram: [0; RAM_SIZE],
         }
     }
 
     pub fn tick(&mut self, nes: &mut Nes) -> usize {
-        self.execute_instruction(nes)
+        let cycle = self.execute_instruction(nes);
+        self.interrupt(nes);
+        cycle
+    }
+
+    fn interrupt(&mut self, nes: &mut Nes) {
+        match nes.cpu_interruption {
+            Interruption::RESET => { debug!("CPU RESET interruption is not implemented yet") },
+            Interruption::IRQ => { debug!("CPU IRQ interruption is not implemented yet") },
+            Interruption::BRK => {
+                if self.read_flag(Flag::InterruptDisable) {
+                    return
+                }
+                debug!("BRK interruption: Jump to 0x{:02X}{:02X}",
+                       self.read(nes, 0xFFFF), self.read(nes,0xFFFE));
+                self.push((self.pc >> 8) as u8);
+                self.push((self.pc & 0x00FF) as u8);
+                self.push(self.status);
+                self.status = self.status | u8::from(Flag::InterruptDisable);
+
+                self.pc = (self.read(nes, 0xFFFF) as u16) << 8 | self.read(nes, 0xFFFE) as u16;
+            },
+            Interruption::NMI => { debug!("CPU NMI interruption is not implemented yet") },
+            Interruption::None => {},
+        }
+        nes.cpu_interruption = Interruption::None;
     }
 
     fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
@@ -66,6 +102,7 @@ impl Cpu {
         let additional_cycle = match opcode {
             Opcode::ASL => self.instruction_asl(nes, addressing),
             Opcode::BNE => self.instruction_bne(nes, addressing),
+            Opcode::BRK => self.instruction_brk(nes, addressing),
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
             Opcode::INX => self.instruction_inx(nes, addressing),
@@ -145,6 +182,16 @@ impl Cpu {
         }
     }
 
+    fn push(&mut self, data: u8) {
+        self.write_ram(self.s, data);
+        self.s -= 1;
+    }
+
+    fn pop(&mut self) -> u8 {
+        self.s += 1;
+        self.read_ram(self.s - 1)
+    }
+
     fn fetch_byte(&mut self, nes: &mut Nes) -> u8 {
         self.pc += 1;
         self.read(nes, self.pc-1)
@@ -192,6 +239,17 @@ impl Cpu {
         }
 
         additional_cycle
+    }
+
+    fn instruction_brk(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        if addressing != Addressing::Implied {
+            panic!("Unknown BRK addressing mode: {:?}", addressing);
+        }
+
+        nes.cpu_interruption = Interruption::BRK;
+        self.write_flag(Flag::Break, true);
+
+        0
     }
 
     fn instruction_dec(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -305,7 +363,7 @@ impl Cpu {
     }
 
     fn instruction_txs(&mut self, _: &mut Nes, _: Addressing) -> usize {
-        self.s = self.x;
+        self.s = self.x as u16;
 
         0
     }
@@ -322,6 +380,7 @@ mod tests {
     use super::Cpu;
     use super::Flag;
     use super::Nes;
+    use super::Interruption;
 
     fn new_test_cpu(prg_rom: Vec<u8>) -> (Cpu, Nes) {
         (
@@ -382,6 +441,14 @@ mod tests {
         cpu.write_flag(Flag::Zero, false);
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
+    }
+
+    #[test]
+    fn instruction_brk() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x00]);
+        assert_eq!(cpu.execute_instruction(&mut nes), 7);
+        assert_eq!(nes.cpu_interruption, Interruption::BRK);
+        assert_eq!(cpu.read_flag(Flag::Break), true);
     }
 
     #[test]

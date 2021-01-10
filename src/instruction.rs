@@ -87,6 +87,9 @@ impl From<u8> for Instruction {
             0x06 => Instruction(Opcode::ASL, Addressing::ZeroPage, 5),
 
             0xD0 => Instruction(Opcode::BNE, Addressing::Relative, 2),
+
+            0x00 => Instruction(Opcode::BRK, Addressing::Implied, 7),
+
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),
             0xD6 => Instruction(Opcode::DEC, Addressing::ZeroPageX, 6),
 

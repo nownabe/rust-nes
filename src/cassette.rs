@@ -8,20 +8,28 @@ const INES_HEADER_CONSTANT: [u8; 4] = [0x4e, 0x45, 0x53, 0x1a];
 const PRG_ROM_UNIT_SIZE: usize = 0x4000; // 16384 bytes
 const CHR_ROM_UNIT_SIZE: usize = 0x2000; // 8192 bytes
 
+const PRG_ROM_MAX_SIZE: usize = 0x8000;
+
 pub struct Cassette {
     header: [u8; INES_HEADER_SIZE],
     // trainer: Option<[u8; TRAINER_SIZE]>,
-    pub prg_rom: Vec<u8>,
+    pub prg_rom: [u8; PRG_ROM_MAX_SIZE],
     pub chr_rom: Vec<u8>,
     pub sprites: Vec<Sprite>,
 }
 
 impl Cassette {
     pub fn new(data: Vec<u8>) -> Self {
+        let mut cassette = Self {
+            header: [0; INES_HEADER_SIZE],
+            prg_rom: [0; PRG_ROM_MAX_SIZE],
+            chr_rom: vec![],
+            sprites: vec![],
+        };
+
         // Parse header
-        let mut header = [0; INES_HEADER_SIZE];
         for i in 0..INES_HEADER_SIZE {
-            header[i] = data[i];
+            cassette.header[i] = data[i];
         }
 
         // Trainer, if present
@@ -31,26 +39,24 @@ impl Cassette {
 
         // Parse PRG ROM data
         let prg_start = INES_HEADER_SIZE;
-        let prg_end = prg_start + PRG_ROM_UNIT_SIZE * (header[4] as usize);
-        debug!("PRG ROM size = {} units ({} bytes)", header[4], prg_end - prg_start);
+        let prg_end = prg_start + PRG_ROM_UNIT_SIZE * (cassette.header[4] as usize);
+        debug!("PRG ROM size = {} units ({} bytes)", cassette.header[4], prg_end - prg_start);
         debug!("PRG ROM start address = 0x{:X}", prg_start);
         debug!("PRG ROM end address = 0x{:X}", prg_end);
+        for i in prg_start..prg_end {
+            cassette.prg_rom[i] = data[prg_start + i];
+        }
 
         let chr_start = prg_end;
-        let chr_end = chr_start + CHR_ROM_UNIT_SIZE * (header[5] as usize);
-        debug!("CHR ROM size = {} units ({} bytes)", header[5], chr_end - chr_start);
+        let chr_end = chr_start + CHR_ROM_UNIT_SIZE * (cassette.header[5] as usize);
+        debug!("CHR ROM size = {} units ({} bytes)", cassette.header[5], chr_end - chr_start);
         debug!("CHR ROM start address = 0x{:X}", chr_start);
         debug!("CHR ROM end address = 0x{:X}", chr_end);
-        let chr_rom = data[chr_start..chr_end].to_vec();
+        cassette.chr_rom = data[chr_start..chr_end].to_vec();
 
-        let sprites = Self::parse_sprites(&chr_rom);
+        cassette.sprites = Self::parse_sprites(&cassette.chr_rom);
 
-        Self {
-            header,
-            prg_rom: data[prg_start..prg_end].to_vec(),
-            chr_rom,
-            sprites,
-        }
+        cassette
     }
 
     fn parse_sprites(chr_rom: &Vec<u8>) -> Vec<Sprite> {

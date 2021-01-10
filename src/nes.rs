@@ -1,6 +1,7 @@
 use super::cassette::Cassette;
 use super::cassette::Sprite;
 use super::ppu_register_bus::PpuRegisterBus;
+use super::cpu::Interruption;
 
 /*
  * Container for sharable hardwares, such as PPU registers and cassette.
@@ -8,6 +9,7 @@ use super::ppu_register_bus::PpuRegisterBus;
 pub struct Nes {
     cassette: Cassette,
     pub ppu_register_bus: PpuRegisterBus,
+    pub cpu_interruption: Interruption,
 }
 
 impl Nes {
@@ -15,6 +17,7 @@ impl Nes {
         Self {
             cassette,
             ppu_register_bus: PpuRegisterBus::new(),
+            cpu_interruption: Interruption::None,
         }
     }
 
@@ -29,6 +32,7 @@ impl Nes {
         Self {
             cassette: Cassette::new(data),
             ppu_register_bus: PpuRegisterBus::new(),
+            cpu_interruption: Interruption::None,
         }
     }
 
