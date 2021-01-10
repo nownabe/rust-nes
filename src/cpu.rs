@@ -106,6 +106,7 @@ impl Cpu {
             Opcode::DEY => self.instruction_dey(nes, addressing),
             Opcode::INX => self.instruction_inx(nes, addressing),
             Opcode::JMP => self.instruction_jmp(nes, addressing),
+            Opcode::JSR => self.instruction_jsr(nes, addressing),
             Opcode::LDA => self.instruction_lda(nes, addressing),
             Opcode::LDX => self.instruction_ldx(nes, addressing),
             Opcode::LDY => self.instruction_ldy(nes, addressing),
@@ -297,6 +298,14 @@ impl Cpu {
         0
     }
 
+    fn instruction_jsr(&mut self, nes: &mut Nes, _: Addressing) -> usize {
+        let addr = self.fetch_word(nes);
+        self.push_word(self.pc);
+        self.pc = addr;
+
+        0
+    }
+
     fn instruction_lda(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let mut additional_cycle = 0;
         let operand = match addressing {
@@ -422,7 +431,7 @@ mod tests {
                 x: 0,
                 y: 0,
                 pc: PRG_ROM_BASE,
-                s: 0,
+                s: 0x00fd,
                 status: 0,
                 ram: [0; RAM_SIZE],
             },
@@ -572,6 +581,15 @@ mod tests {
         let (mut cpu, mut nes) = new_test_cpu(vec![0x4C, 0x03, 0x01]);
         assert_eq!(cpu.execute_instruction(&mut nes), 3);
         assert_eq!(cpu.pc, 0x0103);
+    }
+
+    #[test]
+    fn instruction_jsr() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x20, 0x09, 0x90]);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
+        assert_eq!(cpu.pc, 0x9009);
+        assert_eq!(cpu.read(&mut nes, cpu.s+2), (PRG_ROM_BASE >> 8) as u8);
+        assert_eq!(cpu.read(&mut nes, cpu.s+1), (PRG_ROM_BASE & 0x00ff) as u8 + 3);
     }
 
     #[test]

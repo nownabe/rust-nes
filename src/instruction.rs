@@ -100,6 +100,7 @@ impl From<u8> for Instruction {
             0xE8 => Instruction(Opcode::INX, Addressing::Implied, 2),
 
             0x4C => Instruction(Opcode::JMP, Addressing::Absolute, 3),
+            0x20 => Instruction(Opcode::JSR, Addressing::Absolute, 6),
 
             0xA9 => Instruction(Opcode::LDA, Addressing::Immediate, 2),
             0xA5 => Instruction(Opcode::LDA, Addressing::ZeroPage, 3),
