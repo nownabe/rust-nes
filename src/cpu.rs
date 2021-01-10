@@ -81,9 +81,8 @@ impl Cpu {
                 }
                 debug!("BRK interruption: Jump to 0x{:02X}{:02X}",
                        self.read(nes, 0xFFFF), self.read(nes,0xFFFE));
-                self.push((self.pc >> 8) as u8);
-                self.push((self.pc & 0x00FF) as u8);
-                self.push(self.status);
+                self.push_word(self.pc);
+                self.push_byte(self.status);
                 self.status = self.status | u8::from(Flag::InterruptDisable);
 
                 self.pc = (self.read(nes, 0xFFFF) as u16) << 8 | self.read(nes, 0xFFFE) as u16;
@@ -185,9 +184,14 @@ impl Cpu {
         }
     }
 
-    fn push(&mut self, data: u8) {
+    fn push_byte(&mut self, data: u8) {
         self.write_ram(self.s, data);
         self.s -= 1;
+    }
+
+    fn push_word(&mut self, data: u16) {
+        self.push_byte((data >> 8) as u8);
+        self.push_byte((data & 0x00ff) as u8);
     }
 
     fn pop(&mut self) -> u8 {
