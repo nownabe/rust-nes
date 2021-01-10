@@ -102,6 +102,7 @@ impl Cpu {
             Opcode::ASL => self.instruction_asl(nes, addressing),
             Opcode::BNE => self.instruction_bne(nes, addressing),
             Opcode::BRK => self.instruction_brk(nes, addressing),
+            Opcode::BVC => self.instruction_bvc(nes, addressing),
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
             Opcode::INX => self.instruction_inx(nes, addressing),
@@ -258,6 +259,27 @@ impl Cpu {
         self.write_flag(Flag::Break, true);
 
         0
+    }
+
+    fn instruction_bvc(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        if addressing != Addressing::Relative {
+            panic!("Unknown BVC addressing mode: {:?}", addressing);
+        }
+
+        let val = self.fetch_byte(nes) as i8;
+        let mut additional_cycle = 0;
+
+        if !self.read_flag(Flag::Overflow) {
+            let addr = self.pc as i32 + val as i32;
+            if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
+                additional_cycle += 1;
+            }
+
+            self.pc = addr as u16;
+            additional_cycle += 1;
+        }
+
+        additional_cycle
     }
 
     fn instruction_dec(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -491,6 +513,24 @@ mod tests {
         assert_eq!(cpu.execute_instruction(&mut nes), 7);
         assert_eq!(nes.cpu_interruption, Interruption::BRK);
         assert_eq!(cpu.read_flag(Flag::Break), true);
+    }
+
+    #[test]
+    fn instruction_bvc() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x50, 0x03]);
+        cpu.write_flag(Flag::Overflow, false);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 + 0x03);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x50, 0x03]);
+        cpu.write_flag(Flag::Overflow, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x50, !0x03+1]);
+        cpu.write_flag(Flag::Overflow, false);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
 
     #[test]
