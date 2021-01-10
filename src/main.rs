@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cpu = cpu::Cpu::new();
     let mut ppu = ppu::Ppu::new();
 
-    display_sprites(&nes);
+    //display_sprites(&nes);
 
     let scale = 4;
     let width = ppu::VISIBLE_SCREEN_WIDTH as u32 * scale;
