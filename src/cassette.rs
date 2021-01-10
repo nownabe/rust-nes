@@ -44,7 +44,7 @@ impl Cassette {
         debug!("PRG ROM start address = 0x{:X}", prg_start);
         debug!("PRG ROM end address = 0x{:X}", prg_end);
         for i in prg_start..prg_end {
-            cassette.prg_rom[i] = data[prg_start + i];
+            cassette.prg_rom[i-prg_start] = data[i];
         }
 
         let chr_start = prg_end;
