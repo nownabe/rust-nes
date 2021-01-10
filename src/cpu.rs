@@ -114,6 +114,9 @@ impl Cpu {
             Opcode::SEI => self.instruction_sei(nes, addressing),
             Opcode::STA => self.instruction_sta(nes, addressing),
             Opcode::TXS => self.instruction_txs(nes, addressing),
+
+            // Unofficial instructions
+            Opcode::SLO => self.instruction_slo(nes, addressing),
             _ => {
                 self.dump();
                 panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
@@ -349,6 +352,32 @@ impl Cpu {
         self.write_flag(Flag::InterruptDisable, true);
 
         0
+    }
+
+    // ASL + ORA
+    fn instruction_slo(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        let addr = match addressing {
+            IndexedIndirect => {
+                let addr = (self.fetch_byte(nes) + self.x) as u16;
+                let l = self.read(nes, addr) as u16;
+                let h = (self.read(nes, addr + 1) as u16) << 8;
+                l + h
+            },
+            _ => panic!("Unknown SLO addressing mode: {:?}", addressing),
+        };
+
+        // ASL
+        let data = self.read(nes, addr);
+        let val = data.wrapping_shl(1);
+        self.write_flag(Flag::Carry, data & 0b10000000 == 0b10000000);
+
+        // ORA
+        self.a = val | self.a;
+        self.write_flag(Flag::Zero, self.a == 0);
+        self.write_flag(Flag::Negative, is_negative(self.a));
+
+        0
+
     }
 
     fn instruction_sta(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -629,6 +658,11 @@ mod tests {
         let (mut cpu, mut nes) = new_test_cpu(vec![0x78]);
         assert_eq!(cpu.execute_instruction(&mut nes), 2);
         assert_eq!(cpu.read_flag(Flag::InterruptDisable), true);
+    }
+
+    #[test]
+    fn instruction_slo() {
+        // TODO
     }
 
     #[test]

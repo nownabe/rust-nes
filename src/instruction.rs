@@ -69,6 +69,9 @@ pub enum Opcode {
     TXS,
     TYA,
 
+    // Unofficial
+    SLO,
+
     UNKNOWN(u8),
 }
 
@@ -114,6 +117,8 @@ impl From<u8> for Instruction {
             0x9A => Instruction(Opcode::TXS, Addressing::Implied, 2),
 
             // Unofficial instructions
+            0x03 => Instruction(Opcode::SLO, Addressing::IndexedIndirect, 8),
+
             0x02 => Instruction(Opcode::NOP, Addressing::Implied, 2),
             0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
 
