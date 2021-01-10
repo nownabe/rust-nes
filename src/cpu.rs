@@ -88,12 +88,12 @@ impl Cpu {
 
     fn dump(&self) {
         println!("Cpu {{");
-        println!("  a  = {}", self.a);
-        println!("  x  = {}", self.x);
-        println!("  y  = {}", self.y);
-        println!("  pc = {}", self.pc);
-        println!("  s  = {}", self.s);
-        println!("  p  = {}", self.status);
+        println!("  a  = {:02X}", self.a);
+        println!("  x  = {:02X}", self.x);
+        println!("  y  = {:02X}", self.y);
+        println!("  pc = {:04X}", self.pc);
+        println!("  s  = {:04X}", self.s);
+        println!("  p  = {:08b}", self.status);
         println!("}}");
     }
 
