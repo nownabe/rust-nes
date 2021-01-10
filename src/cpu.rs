@@ -186,7 +186,7 @@ impl Cpu {
 
     fn push_byte(&mut self, data: u8) {
         self.write_ram(self.s, data);
-        self.s -= 1;
+        self.s = self.s.wrapping_sub(1);
     }
 
     fn push_word(&mut self, data: u16) {
