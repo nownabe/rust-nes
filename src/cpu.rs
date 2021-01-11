@@ -106,6 +106,7 @@ impl Cpu {
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
             Opcode::INX => self.instruction_inx(nes, addressing),
+            Opcode::ISC => self.instruction_isc(nes, addressing),
             Opcode::JMP => self.instruction_jmp(nes, addressing),
             Opcode::JSR => self.instruction_jsr(nes, addressing),
             Opcode::LDA => self.instruction_lda(nes, addressing),
@@ -313,6 +314,33 @@ impl Cpu {
         0
     }
 
+    // ISC = INC + SBC
+    fn instruction_isc(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        let addr = match addressing {
+            Addressing::AbsoluteX => self.fetch_word(nes) + self.x as u16,
+            _ => panic!("Unknown ISC addressing mode: {:?}", addressing),
+        };
+
+        // INC
+        let data = self.read(nes, addr);
+        let incremented_val = data.wrapping_add(1);
+        self.write(nes, addr, incremented_val);
+
+        // SBC
+        let c = if self.read_flag(Flag::Carry) { 0 } else { 1 };
+        let (next_val, overflowed1) = self.a.overflowing_sub(incremented_val);
+        let (result, overflowed2) = next_val.overflowing_sub(c);
+
+        self.write_flag(Flag::Carry, !(is_carried(self.a, incremented_val) || is_carried(next_val, c)));
+        self.write_flag(Flag::Zero, result == 0);
+        self.write_flag(Flag::Overflow, overflowed1 || overflowed2);
+        self.write_flag(Flag::Negative, is_negative(result));
+
+        self.a = result;
+
+        0
+    }
+
     fn instruction_jmp(&mut self, nes: &mut Nes, _: Addressing) -> usize {
         let addr = self.fetch_word(nes);
         self.pc = addr;
@@ -435,6 +463,11 @@ impl Cpu {
 
 fn is_negative(v: u8) -> bool {
     v & 0b10000000 == 0b10000000
+}
+
+fn is_carried(v1: u8, v2: u8) -> bool {
+    let result = v1 as u16 + v2 as u16;
+    result & 0x0100 == 0x0100
 }
 
 #[cfg(test)]
