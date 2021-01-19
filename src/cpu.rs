@@ -103,6 +103,7 @@ impl Cpu {
             Opcode::BNE => self.instruction_bne(nes, addressing),
             Opcode::BRK => self.instruction_brk(nes, addressing),
             Opcode::BVC => self.instruction_bvc(nes, addressing),
+            Opcode::CLD => self.instruction_cld(nes, addressing),
             Opcode::DEC => self.instruction_dec(nes, addressing),
             Opcode::DEY => self.instruction_dey(nes, addressing),
             Opcode::INX => self.instruction_inx(nes, addressing),
@@ -258,6 +259,16 @@ impl Cpu {
 
         nes.cpu_interruption = Interruption::BRK;
         self.write_flag(Flag::Break, true);
+
+        0
+    }
+
+    fn instruction_cld(&mut self, _: &mut Nes, addressing: Addressing) -> usize {
+        if addressing != Addressing::Implied {
+            panic!("Invalid CLD addressing mode: {:?}", addressing);
+        }
+
+        self.write_flag(Flag::Decimal, false);
 
         0
     }
@@ -564,6 +575,14 @@ mod tests {
         cpu.write_flag(Flag::Overflow, false);
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
+    }
+
+    #[test]
+    fn instruction_cld() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD8]);
+        cpu.write_flag(Flag::Decimal, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.read_flag(Flag::Decimal), false);
     }
 
     #[test]
