@@ -215,9 +215,13 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
-        let (addr, data) = match mode {
+    // Return (address: Option<u16>, data: u8)
+    // Accumulator and Immediate don't appear at same instruction.
+    fn fetch_addressed_data(&mut self, nes: &mut Nes, mode: Addressing) -> (Option<u16>, u8) {
+        match mode {
+            Addressing::Implied => { panic!("Invalid addressing mode Implied") },
             Addressing::Accumulator => (None, self.a),
+            Addressing::Immediate => (None, self.fetch_byte(nes)),
             Addressing::ZeroPage => {
                 let addr = self.fetch_byte(nes) as u16;
                 (Some(addr), self.read(nes, addr))
@@ -226,6 +230,8 @@ impl Cpu {
                 let addr = self.fetch_byte(nes) as u16 + self.x as u16;
                 (Some(addr), self.read(nes, addr))
             },
+            Addressing::ZeroPageY => { todo!("Not implemented Reative addressing mode") },
+            Addressing::Relative => { todo!("Not implemented Reative addressing mode") },
             Addressing::Absolute => {
                 let addr = self.fetch_word(nes);
                 (Some(addr), self.read(nes, addr))
@@ -234,8 +240,16 @@ impl Cpu {
                 let addr = self.fetch_word(nes).wrapping_add(self.x as u16);
                 (Some(addr), self.read(nes, addr))
             },
-            _ => panic!("Invalid ASL addressing mode: {:?}", mode),
-        };
+            Addressing::AbsoluteY => { todo!("Not implemented Reative addressing mode") },
+            Addressing::Indirect => { todo!("Not implemented Reative addressing mode") },
+            Addressing::IndexedIndirect => { todo!("Not implemented Reative addressing mode") },
+            Addressing::IndirectIndexed => { todo!("Not implemented Reative addressing mode") },
+            Addressing::UNKNOWN => { panic!("Unknown addressing mode") },
+        }
+    }
+
+    fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
+        let (addr, data) = self.fetch_addressed_data(nes, mode);
 
         let next = data.wrapping_shl(1);
 
@@ -244,8 +258,8 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(next));
 
         if let Some(addr) = addr {
-            self.write(nes, addr, next);
-        } else {
+            self.write(nes, addr, next)
+        } else { // Addressing mode is Accumulator
             self.a = next;
         }
 
