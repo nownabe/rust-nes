@@ -215,21 +215,39 @@ impl Cpu {
         h << 8 | l
     }
 
-    fn instruction_asl(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
-        let addr = match addressing {
-            Addressing::ZeroPage => self.fetch_byte(nes) as u16,
-            Addressing::ZeroPageX => {
-                self.fetch_byte(nes) as u16 + self.x as u16
+    fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
+        let (addr, data) = match mode {
+            Addressing::Accumulator => (None, self.a),
+            Addressing::ZeroPage => {
+                let addr = self.fetch_byte(nes) as u16;
+                (Some(addr), self.read(nes, addr))
             },
-            _ => panic!("Unknown ASL addressing mode: {:?}", addressing),
+            Addressing::ZeroPageX => {
+                let addr = self.fetch_byte(nes) as u16 + self.x as u16;
+                (Some(addr), self.read(nes, addr))
+            },
+            Addressing::Absolute => {
+                let addr = self.fetch_word(nes);
+                (Some(addr), self.read(nes, addr))
+            },
+            Addressing::AbsoluteX => {
+                let addr = self.fetch_word(nes).wrapping_add(self.x as u16);
+                (Some(addr), self.read(nes, addr))
+            },
+            _ => panic!("Invalid ASL addressing mode: {:?}", mode),
         };
 
-        let data = self.read(nes, addr);
-        let val = data.wrapping_shl(1);
-        self.write(nes, addr, val);
+        let next = data.wrapping_shl(1);
+
         self.write_flag(Flag::Carry, data & 0b10000000 == 0b10000000);
         self.write_flag(Flag::Zero, self.a == 0);
-        self.write_flag(Flag::Negative, is_negative(val));
+        self.write_flag(Flag::Negative, is_negative(next));
+
+        if let Some(addr) = addr {
+            self.write(nes, addr, next);
+        } else {
+            self.a = next;
+        }
 
         0
     }
@@ -537,6 +555,12 @@ mod tests {
 
     #[test]
     fn instruction_asl() {
+        // Accumulator
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x0A]);
+        cpu.a = 3;
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.a, 6);
+
         // ZeroPage; Flag behavior
         let (mut cpu, mut nes) = new_test_cpu(vec![0x06, 0x10]);
         cpu.write(&mut nes, 0x10, 2);
@@ -568,6 +592,19 @@ mod tests {
         cpu.write(&mut nes, 0x0012, 3);
         assert_eq!(cpu.execute_instruction(&mut nes), 6);
         assert_eq!(cpu.read(&mut nes, 0x0012), 6);
+
+        // Absolute
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x0E, 0x10, 0x01]);
+        cpu.write(&mut nes, 0x0110, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
+        assert_eq!(cpu.read(&mut nes, 0x0110), 6);
+
+        // AbsoluteX
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x1E, 0x10, 0x01]);
+        cpu.x = 2;
+        cpu.write(&mut nes, 0x0112, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 7);
+        assert_eq!(cpu.read(&mut nes, 0x0112), 6);
     }
 
     #[test]
