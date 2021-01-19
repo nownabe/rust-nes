@@ -371,6 +371,10 @@ impl Cpu {
         let mut additional_cycle = 0;
         let operand = match addressing {
             Addressing::Immediate => self.fetch_byte(nes),
+            Addressing::Absolute => {
+                let addr = self.fetch_word(nes);
+                self.read(nes, addr)
+            },
             Addressing::AbsoluteX => {
                 let word = self.fetch_word(nes);
                 let addr = word.wrapping_add(self.x as u16);
@@ -706,6 +710,12 @@ mod tests {
         assert_eq!(cpu.read_flag(Flag::Negative), true);
 
         // Immediate: Omission
+
+        // Absolute
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xAD, 0x01, 0x10]);
+        cpu.write(&mut nes, 0x1001, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.a, 3);
 
         // Absolute X
         let (mut cpu, mut nes) = new_test_cpu(vec![0xBD, 0x10, 0x10]);
