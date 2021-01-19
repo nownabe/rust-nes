@@ -218,6 +218,9 @@ impl Cpu {
     fn instruction_asl(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let addr = match addressing {
             Addressing::ZeroPage => self.fetch_byte(nes) as u16,
+            Addressing::ZeroPageX => {
+                self.fetch_byte(nes) as u16 + self.x as u16
+            },
             _ => panic!("Unknown ASL addressing mode: {:?}", addressing),
         };
 
@@ -558,6 +561,13 @@ mod tests {
         assert_eq!(cpu.read_flag(Flag::Carry), false);
         assert_eq!(cpu.read_flag(Flag::Zero), true);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
+
+        // ZeroPageX
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x16, 0x10]);
+        cpu.x = 2;
+        cpu.write(&mut nes, 0x0012, 3);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
+        assert_eq!(cpu.read(&mut nes, 0x0012), 6);
     }
 
     #[test]

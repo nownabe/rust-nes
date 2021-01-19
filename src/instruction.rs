@@ -89,6 +89,7 @@ impl From<u8> for Instruction {
     fn from(opcode: u8) -> Self {
         match opcode {
             0x06 => Instruction(Opcode::ASL, Addressing::ZeroPage, 5),
+            0x16 => Instruction(Opcode::ASL, Addressing::ZeroPageX, 6),
 
             0xD0 => Instruction(Opcode::BNE, Addressing::Relative, 2),
 
