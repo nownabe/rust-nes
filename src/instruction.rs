@@ -92,6 +92,8 @@ impl From<u8> for Instruction {
 
             0xD0 => Instruction(Opcode::BNE, Addressing::Relative, 2),
 
+            0x10 => Instruction(Opcode::BPL, Addressing::Relative, 2),
+
             0x00 => Instruction(Opcode::BRK, Addressing::Implied, 7),
 
             0x50 => Instruction(Opcode::BVC, Addressing::Relative, 2),

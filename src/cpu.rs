@@ -101,6 +101,7 @@ impl Cpu {
         let additional_cycle = match opcode {
             Opcode::ASL => self.instruction_asl(nes, addressing),
             Opcode::BNE => self.instruction_bne(nes, addressing),
+            Opcode::BPL => self.instruction_bpl(nes, addressing),
             Opcode::BRK => self.instruction_brk(nes, addressing),
             Opcode::BVC => self.instruction_bvc(nes, addressing),
             Opcode::CLD => self.instruction_cld(nes, addressing),
@@ -240,6 +241,28 @@ impl Cpu {
         let mut additional_cycle = 0;
 
         if !self.read_flag(Flag::Zero) {
+            let addr = self.pc as i32 + val as i32;
+            if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
+                additional_cycle += 1;
+            }
+
+            self.pc = addr as u16;
+            additional_cycle += 1;
+        }
+
+        additional_cycle
+    }
+
+    fn instruction_bpl(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
+        if addressing != Addressing::Relative {
+            panic!("Invalid BPL addressing mode: {:?}", addressing);
+        }
+
+        let val = self.fetch_byte(nes) as i8;
+
+        let mut additional_cycle = 0;
+
+        if !self.read_flag(Flag::Negative) {
             let addr = self.pc as i32 + val as i32;
             if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
                 additional_cycle += 1;
@@ -551,6 +574,24 @@ mod tests {
 
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD0, !0x03+1]);
         cpu.write_flag(Flag::Zero, false);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
+    }
+
+    #[test]
+    fn instruction_bpl() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x10, 0x03]);
+        cpu.write_flag(Flag::Negative, false);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 + 0x03);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x10, 0x03]);
+        cpu.write_flag(Flag::Negative, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x10, !0x03+1]);
+        cpu.write_flag(Flag::Negative, false);
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
