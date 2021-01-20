@@ -100,6 +100,7 @@ impl Cpu {
 
         let additional_cycle = match opcode {
             Opcode::ASL => self.instruction_asl(nes, addressing),
+            Opcode::BMI => self.instruction_bmi(nes, addressing),
             Opcode::BNE => self.instruction_bne(nes, addressing),
             Opcode::BPL => self.instruction_bpl(nes, addressing),
             Opcode::BRK => self.instruction_brk(nes, addressing),
@@ -281,6 +282,14 @@ impl Cpu {
         }
 
         0
+    }
+
+    fn instruction_bmi(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
+        if mode != Addressing::Relative {
+            panic!("Invalid BMI addressing mode: {:?}", mode);
+        }
+
+        self.branch_relative(nes, self.read_flag(Flag::Negative))
     }
 
     fn instruction_bne(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -608,6 +617,24 @@ mod tests {
         cpu.write(&mut nes, 0x0112, 3);
         assert_eq!(cpu.execute_instruction(&mut nes), 7);
         assert_eq!(cpu.read(&mut nes, 0x0112), 6);
+    }
+
+    #[test]
+    fn instruction_bmi() { // Branch if Minus
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x30, 0x03]);
+        cpu.write_flag(Flag::Negative, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 + 0x03);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x30, 0x03]);
+        cpu.write_flag(Flag::Negative, false);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x30, !0x03+1]);
+        cpu.write_flag(Flag::Negative, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
 
     #[test]

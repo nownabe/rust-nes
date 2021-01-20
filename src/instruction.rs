@@ -94,6 +94,7 @@ impl From<u8> for Instruction {
             0x0E => Instruction(Opcode::ASL, Addressing::Absolute, 6),
             0x1E => Instruction(Opcode::ASL, Addressing::AbsoluteX, 7),
 
+            0x30 => Instruction(Opcode::BMI, Addressing::Relative, 2),
             0xD0 => Instruction(Opcode::BNE, Addressing::Relative, 2),
 
             0x10 => Instruction(Opcode::BPL, Addressing::Relative, 2),
