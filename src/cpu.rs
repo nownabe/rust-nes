@@ -93,43 +93,6 @@ impl Cpu {
         nes.cpu_interruption = Interruption::None;
     }
 
-    fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
-        let Instruction(opcode, mode, cycle) = self.fetch_byte(nes).into();
-
-        let additional_cycle = match opcode {
-            Opcode::ASL => self.instruction_asl(nes, mode),
-            Opcode::BMI => self.instruction_bmi(nes, mode),
-            Opcode::BNE => self.instruction_bne(nes, mode),
-            Opcode::BPL => self.instruction_bpl(nes, mode),
-            Opcode::BRK => self.instruction_brk(nes, mode),
-            Opcode::BVC => self.instruction_bvc(nes, mode),
-            Opcode::CLD => self.instruction_cld(nes, mode),
-            Opcode::DEC => self.instruction_dec(nes, mode),
-            Opcode::DEY => self.instruction_dey(nes, mode),
-            Opcode::INX => self.instruction_inx(nes, mode),
-            Opcode::ISC => self.instruction_isc(nes, mode),
-            Opcode::JMP => self.instruction_jmp(nes, mode),
-            Opcode::JSR => self.instruction_jsr(nes, mode),
-            Opcode::LDA => self.instruction_lda(nes, mode),
-            Opcode::LDX => self.instruction_ldx(nes, mode),
-            Opcode::LDY => self.instruction_ldy(nes, mode),
-            Opcode::NOP => self.instruction_nop(nes, mode),
-            Opcode::SEI => self.instruction_sei(nes, mode),
-            Opcode::STA => self.instruction_sta(nes, mode),
-            Opcode::TXS => self.instruction_txs(nes, mode),
-
-            // Unofficial instructions
-            Opcode::SLO => self.instruction_slo(nes, mode),
-
-            _ => {
-                self.dump();
-                panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
-            }
-        };
-
-        cycle + additional_cycle
-    }
-
     fn dump(&self) {
         println!("Cpu {{");
         println!("  a  = {:02X}", self.a);
@@ -263,6 +226,43 @@ impl Cpu {
         } else {
             0
         }
+    }
+
+    fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
+        let Instruction(opcode, mode, cycle) = self.fetch_byte(nes).into();
+
+        let additional_cycle = match opcode {
+            Opcode::ASL => self.instruction_asl(nes, mode),
+            Opcode::BMI => self.instruction_bmi(nes, mode),
+            Opcode::BNE => self.instruction_bne(nes, mode),
+            Opcode::BPL => self.instruction_bpl(nes, mode),
+            Opcode::BRK => self.instruction_brk(nes, mode),
+            Opcode::BVC => self.instruction_bvc(nes, mode),
+            Opcode::CLD => self.instruction_cld(nes, mode),
+            Opcode::DEC => self.instruction_dec(nes, mode),
+            Opcode::DEY => self.instruction_dey(nes, mode),
+            Opcode::INX => self.instruction_inx(nes, mode),
+            Opcode::ISC => self.instruction_isc(nes, mode),
+            Opcode::JMP => self.instruction_jmp(nes, mode),
+            Opcode::JSR => self.instruction_jsr(nes, mode),
+            Opcode::LDA => self.instruction_lda(nes, mode),
+            Opcode::LDX => self.instruction_ldx(nes, mode),
+            Opcode::LDY => self.instruction_ldy(nes, mode),
+            Opcode::NOP => self.instruction_nop(nes, mode),
+            Opcode::SEI => self.instruction_sei(nes, mode),
+            Opcode::STA => self.instruction_sta(nes, mode),
+            Opcode::TXS => self.instruction_txs(nes, mode),
+
+            // Unofficial instructions
+            Opcode::SLO => self.instruction_slo(nes, mode),
+
+            _ => {
+                self.dump();
+                panic!("unknown opcode `{}` at 0x{:X}", opcode, self.pc-1)
+            }
+        };
+
+        cycle + additional_cycle
     }
 
     fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
