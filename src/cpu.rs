@@ -248,6 +248,23 @@ impl Cpu {
         }
     }
 
+    fn branch_relative(&mut self, nes: &mut Nes, condition: bool) -> usize {
+        let data = self.fetch_byte(nes) as i8;
+
+        if condition {
+            let prev_pc = self.pc;
+            self.pc = (self.pc as i32 + data as i32) as u16;
+
+            if (self.pc as u16 & 0xff00) == (prev_pc & 0xff00) {
+                1
+            } else {
+                2
+            }
+        } else {
+            0
+        }
+    }
+
     fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
         let (addr, data) = self.fetch_addressed_data(nes, mode);
 
@@ -271,21 +288,7 @@ impl Cpu {
             panic!("Unknown BNE addressing mode: {:?}", addressing);
         }
 
-        let val = self.fetch_byte(nes) as i8;
-
-        let mut additional_cycle = 0;
-
-        if !self.read_flag(Flag::Zero) {
-            let addr = self.pc as i32 + val as i32;
-            if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
-                additional_cycle += 1;
-            }
-
-            self.pc = addr as u16;
-            additional_cycle += 1;
-        }
-
-        additional_cycle
+        self.branch_relative(nes, !self.read_flag(Flag::Zero))
     }
 
     fn instruction_bpl(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
@@ -293,21 +296,7 @@ impl Cpu {
             panic!("Invalid BPL addressing mode: {:?}", addressing);
         }
 
-        let val = self.fetch_byte(nes) as i8;
-
-        let mut additional_cycle = 0;
-
-        if !self.read_flag(Flag::Negative) {
-            let addr = self.pc as i32 + val as i32;
-            if (addr as u16 & 0xff00) != (self.pc & 0xff00) {
-                additional_cycle += 1;
-            }
-
-            self.pc = addr as u16;
-            additional_cycle += 1;
-        }
-
-        additional_cycle
+        self.branch_relative(nes, !self.read_flag(Flag::Negative))
     }
 
     fn instruction_brk(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
