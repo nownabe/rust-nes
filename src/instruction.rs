@@ -152,8 +152,33 @@ impl From<u8> for Instruction {
 
             0x03 => Instruction(Opcode::SLO, Addressing::IndexedIndirect, 8),
 
-            0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0x04 => Instruction(Opcode::NOP, Addressing::ZeroPage, 3),
+            0x0C => Instruction(Opcode::NOP, Addressing::Absolute, 4),
+            0x14 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0x1A => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0x1C => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
+            0x34 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0x3A => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0x3C => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
+            0x44 => Instruction(Opcode::NOP, Addressing::ZeroPage, 3),
+            0x54 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0x5A => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0x5C => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
+            0x64 => Instruction(Opcode::NOP, Addressing::ZeroPage, 3),
             0x74 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0x7A => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0x7C => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
+            0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0x82 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0x89 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0xC2 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0xD4 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0xDA => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0xDC => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
+            0xE2 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0xF4 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
+            0xFA => Instruction(Opcode::NOP, Addressing::Implied, 2),
+            0xFC => Instruction(Opcode::NOP, Addressing::AbsoluteX, 4), //*
 
             _ => Instruction(Opcode::UNKNOWN(opcode), Addressing::UNKNOWN, 0),
         }

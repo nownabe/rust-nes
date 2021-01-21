@@ -180,9 +180,9 @@ impl Cpu {
 
     // Return (address: Option<u16>, data: u8)
     // Accumulator and Immediate don't appear at same instruction.
-    fn fetch_addressed_data(&mut self, nes: &mut Nes, mode: Addressing) -> (Option<u16>, u8) {
+    fn fetch_addressed_data(&mut self, nes: &mut Nes, mode: &Addressing) -> (Option<u16>, u8) {
         match mode {
-            Addressing::Implied => { panic!("Invalid addressing mode Implied") },
+            Addressing::Implied => { (None, 0) },
             Addressing::Accumulator => (None, self.a),
             Addressing::Immediate => (None, self.fetch_byte(nes)),
             Addressing::ZeroPage => {
@@ -275,7 +275,7 @@ impl Cpu {
     }
 
     fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
-        let (addr, data) = self.fetch_addressed_data(nes, mode);
+        let (addr, data) = self.fetch_addressed_data(nes, &mode);
 
         let next = data.wrapping_shl(1);
 
@@ -478,12 +478,16 @@ impl Cpu {
         0
     }
 
-    fn instruction_nop(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
-        match addressing {
-            Addressing::Implied => {},
-            Addressing::Immediate => { self.fetch_byte(nes); },
-            Addressing::ZeroPageX => { self.fetch_byte(nes); },
-            _ => panic!("Invalid NOP addressing mode: {:?}", addressing),
+    fn instruction_nop(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
+        let (addr, _) = self.fetch_addressed_data(nes, &mode);
+
+        // Add 1 cycle if addressing mode is absolute X and page boundry is crossed
+        if mode == Addressing::AbsoluteX {
+            if let Some(addr) = addr {
+                if (addr & 0xff00) != (addr.wrapping_sub(self.x as u16) & 0xff00) {
+                    return 1;
+                }
+            }
         }
 
         0
