@@ -104,6 +104,7 @@ impl From<u8> for Instruction {
             0x50 => Instruction(Opcode::BVC, Addressing::Relative, 2),
 
             // Clear flags
+            0x18 => Instruction(Opcode::CLC, Addressing::Implied, 2),
             0xD8 => Instruction(Opcode::CLD, Addressing::Implied, 2),
             0xB8 => Instruction(Opcode::CLV, Addressing::Implied, 2),
 

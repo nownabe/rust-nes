@@ -238,6 +238,7 @@ impl Cpu {
             Opcode::BPL => self.instruction_bpl(nes, mode),
             Opcode::BRK => self.instruction_brk(nes, mode),
             Opcode::BVC => self.instruction_bvc(nes, mode),
+            Opcode::CLC => self.instruction_clear_flag(Flag::Carry),
             Opcode::CLD => self.instruction_clear_flag(Flag::Decimal),
             Opcode::CLV => self.instruction_clear_flag(Flag::Overflow),
             Opcode::DEC => self.instruction_dec(nes, mode),
@@ -692,6 +693,14 @@ mod tests {
         cpu.write_flag(Flag::Overflow, false);
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
+    }
+
+    #[test]
+    fn instruction_clc() {
+        let (mut cpu, mut nes) = new_test_cpu(vec![0x18]);
+        cpu.write_flag(Flag::Carry, true);
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.read_flag(Flag::Carry), false);
     }
 
     #[test]
