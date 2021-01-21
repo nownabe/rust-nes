@@ -136,7 +136,20 @@ impl From<u8> for Instruction {
 
             // Unofficial instructions
             0xFF => Instruction(Opcode::ISC, Addressing::AbsoluteX, 7),
+
             0x02 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x12 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x22 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x32 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x42 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x52 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x62 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x72 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0x92 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0xB2 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0xD2 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+            0xF2 => Instruction(Opcode::KIL, Addressing::Implied, 2),
+
             0x03 => Instruction(Opcode::SLO, Addressing::IndexedIndirect, 8),
 
             0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
