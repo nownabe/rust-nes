@@ -486,7 +486,7 @@ impl Cpu {
     // ASL + ORA
     fn instruction_slo(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
         let addr = match addressing {
-            IndexedIndirect => {
+            Addressing::IndexedIndirect => {
                 let addr = (self.fetch_byte(nes) + self.x) as u16;
                 let l = self.read(nes, addr) as u16;
                 let h = (self.read(nes, addr + 1) as u16) << 8;
