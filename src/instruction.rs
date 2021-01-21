@@ -139,6 +139,7 @@ impl From<u8> for Instruction {
 
             0x02 => Instruction(Opcode::NOP, Addressing::Implied, 2),
             0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
+            0x74 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
 
             _ => Instruction(Opcode::UNKNOWN(opcode), Addressing::UNKNOWN, 0),
         }

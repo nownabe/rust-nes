@@ -473,7 +473,8 @@ impl Cpu {
         match addressing {
             Addressing::Implied => {},
             Addressing::Immediate => { self.fetch_byte(nes); },
-            _ => panic!("Unknown addressing mode: {:?}", addressing),
+            Addressing::ZeroPageX => { self.fetch_byte(nes); },
+            _ => panic!("Invalid NOP addressing mode: {:?}", addressing),
         }
 
         0
