@@ -106,6 +106,7 @@ impl From<u8> for Instruction {
             // Clear flags
             0x18 => Instruction(Opcode::CLC, Addressing::Implied, 2),
             0xD8 => Instruction(Opcode::CLD, Addressing::Implied, 2),
+            0x58 => Instruction(Opcode::CLI, Addressing::Implied, 2),
             0xB8 => Instruction(Opcode::CLV, Addressing::Implied, 2),
 
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),

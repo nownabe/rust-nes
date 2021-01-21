@@ -240,6 +240,7 @@ impl Cpu {
             Opcode::BVC => self.instruction_bvc(nes, mode),
             Opcode::CLC => self.instruction_clear_flag(Flag::Carry),
             Opcode::CLD => self.instruction_clear_flag(Flag::Decimal),
+            Opcode::CLI => self.instruction_clear_flag(Flag::InterruptDisable),
             Opcode::CLV => self.instruction_clear_flag(Flag::Overflow),
             Opcode::DEC => self.instruction_dec(nes, mode),
             Opcode::DEY => self.instruction_dey(nes, mode),
@@ -566,6 +567,7 @@ mod tests {
         for case in vec![
             (Flag::Carry, 0x18),
             (Flag::Decimal, 0xD8),
+            (Flag::InterruptDisable, 0x58),
             (Flag::Overflow, 0xB8),
         ] {
             let (mut cpu, mut nes) = new_test_cpu(vec![case.1]);
