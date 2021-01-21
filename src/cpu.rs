@@ -257,6 +257,7 @@ impl Cpu {
             Opcode::TXS => self.instruction_txs(nes, mode),
 
             // Unofficial instructions
+            Opcode::KIL => self.instruction_kil(nes, mode),
             Opcode::SLO => self.instruction_slo(nes, mode),
 
             _ => {
@@ -416,6 +417,14 @@ impl Cpu {
         let addr = self.fetch_word(nes);
         self.push_word(self.pc);
         self.pc = addr;
+
+        0
+    }
+
+    fn instruction_kil(&mut self, _: &mut Nes, mode: Addressing) -> usize {
+        if mode != Addressing::Implied {
+            panic!("Invalid KIL addressing mode: {:?}", mode);
+        }
 
         0
     }

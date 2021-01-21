@@ -71,6 +71,7 @@ pub enum Opcode {
 
     // Unofficial
     ISC,
+    KIL,
     SLO,
 
     UNKNOWN(u8),
@@ -135,9 +136,9 @@ impl From<u8> for Instruction {
 
             // Unofficial instructions
             0xFF => Instruction(Opcode::ISC, Addressing::AbsoluteX, 7),
+            0x02 => Instruction(Opcode::KIL, Addressing::Implied, 2),
             0x03 => Instruction(Opcode::SLO, Addressing::IndexedIndirect, 8),
 
-            0x02 => Instruction(Opcode::NOP, Addressing::Implied, 2),
             0x80 => Instruction(Opcode::NOP, Addressing::Immediate, 2),
             0x74 => Instruction(Opcode::NOP, Addressing::ZeroPageX, 4),
 
