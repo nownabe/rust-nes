@@ -6,7 +6,7 @@ use super::nes::Nes;
 const RAM_SIZE: usize = 0x0800;
 const PRG_ROM_BASE: u16 = 0x8000;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Flag {
     Carry,
     Zero,
@@ -562,6 +562,20 @@ mod tests {
     }
 
     #[test]
+    fn instruction_clear_flag() { // CLC, CLD, CLV
+        for case in vec![
+            (Flag::Carry, 0x18),
+            (Flag::Decimal, 0xD8),
+            (Flag::Overflow, 0xB8),
+        ] {
+            let (mut cpu, mut nes) = new_test_cpu(vec![case.1]);
+            cpu.write_flag(case.0, true);
+            assert_eq!(cpu.execute_instruction(&mut nes), 2);
+            assert_eq!(cpu.read_flag(case.0), false);
+        }
+    }
+
+    #[test]
     fn instruction_asl() {
         // Accumulator
         let (mut cpu, mut nes) = new_test_cpu(vec![0x0A]);
@@ -694,31 +708,6 @@ mod tests {
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
     }
-
-    #[test]
-    fn instruction_clc() {
-        let (mut cpu, mut nes) = new_test_cpu(vec![0x18]);
-        cpu.write_flag(Flag::Carry, true);
-        assert_eq!(cpu.execute_instruction(&mut nes), 2);
-        assert_eq!(cpu.read_flag(Flag::Carry), false);
-    }
-
-    #[test]
-    fn instruction_cld() {
-        let (mut cpu, mut nes) = new_test_cpu(vec![0xD8]);
-        cpu.write_flag(Flag::Decimal, true);
-        assert_eq!(cpu.execute_instruction(&mut nes), 2);
-        assert_eq!(cpu.read_flag(Flag::Decimal), false);
-    }
-
-    #[test]
-    fn instruction_clv() {
-        let (mut cpu, mut nes) = new_test_cpu(vec![0xB8]);
-        cpu.write_flag(Flag::Overflow, true);
-        assert_eq!(cpu.execute_instruction(&mut nes), 2);
-        assert_eq!(cpu.read_flag(Flag::Overflow), false);
-    }
-
 
     #[test]
     fn instruction_dec() {
