@@ -283,13 +283,17 @@ impl Cpu {
     }
 
     fn instruction_compare(&mut self, nes: &mut Nes, mode: Addressing, val: u8) -> usize {
-        let (_, data, _) = self.fetch_addressed_data(nes, &mode);
+        let (_, data, page_crossed) = self.fetch_addressed_data(nes, &mode);
 
         self.write_flag(Flag::Carry, val >= data);
         self.write_flag(Flag::Zero, val == data);
         self.write_flag(Flag::Negative, is_negative(val.wrapping_sub(data)));
 
-        0
+        if mode == Addressing::IndirectIndexed && page_crossed {
+            1
+        } else {
+            0
+        }
     }
 
     fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
@@ -783,6 +787,15 @@ mod tests {
         cpu.write(&mut nes, 0x0006, 0x08);
         cpu.write(&mut nes, 0x0807 + 0x06, 0x02);
         assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD1, 0x05]);
+        cpu.a = 0x03;
+        cpu.y = 0x06;
+        cpu.write(&mut nes, 0x0005, 0xFF);
+        cpu.write(&mut nes, 0x0006, 0x00);
+        cpu.write(&mut nes, 0x00FF + 0x06, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
         assert_eq!(cpu.read_flag(Flag::Carry), true);
     }
 
