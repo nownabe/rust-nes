@@ -301,6 +301,7 @@ impl Cpu {
 
         if page_crossed {
             match mode {
+                Addressing::AbsoluteX => 1,
                 Addressing::AbsoluteY => 1,
                 Addressing::IndirectIndexed => 1,
                 _ => 0,
@@ -780,6 +781,21 @@ mod tests {
         // ZeroPageX
         // Absolute
         // AbsoluteX
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xDD, 0x01, 0x10]);
+        cpu.a = 0x03;
+        cpu.x = 0x05;
+        cpu.write(&mut nes, 0x1006, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
+        // AbsoluteX (page crossed)
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xDD, 0xFF, 0x00]);
+        cpu.a = 0x03;
+        cpu.x = 0x05;
+        cpu.write(&mut nes, 0x00FF + 0x05, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
         // AbsoluteY
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD9, 0x01, 0x10]);
         cpu.a = 0x03;
