@@ -206,7 +206,13 @@ impl Cpu {
             },
             Addressing::AbsoluteY => { todo!("Not implemented Reative addressing mode") },
             Addressing::Indirect => { todo!("Not implemented Reative addressing mode") },
-            Addressing::IndexedIndirect => { todo!("Not implemented Reative addressing mode") },
+            Addressing::IndexedIndirect => {
+                let zero_page_addr = self.fetch_byte(nes).wrapping_add(self.x) as u16;
+                let l = self.read(nes, zero_page_addr) as u16;
+                let h = (self.read(nes, zero_page_addr.wrapping_add(1)) as u16) << 8;
+                let addr = l + h;
+                (Some(addr), self.read(nes, addr), false)
+            },
             Addressing::IndirectIndexed => {
                 let zero_page_addr = self.fetch_byte(nes) as u16;
                 let l = self.read(nes, zero_page_addr) as u16;
@@ -779,6 +785,15 @@ mod tests {
         // AbsoluteX
         // AbsoluteY
         // IndexedIndirect
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC1, 0x05]);
+        cpu.a = 0x03;
+        cpu.x = 0x06;
+        cpu.write(&mut nes, 0x0B, 0x07);
+        cpu.write(&mut nes, 0x0C, 0x08);
+        cpu.write(&mut nes, 0x0807, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 6);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
         // IndirectIndexed
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD1, 0x05]);
         cpu.a = 0x03;
@@ -789,6 +804,7 @@ mod tests {
         assert_eq!(cpu.execute_instruction(&mut nes), 5);
         assert_eq!(cpu.read_flag(Flag::Carry), true);
 
+        // IndirectIndexed (page crossed)
         let (mut cpu, mut nes) = new_test_cpu(vec![0xD1, 0x05]);
         cpu.a = 0x03;
         cpu.y = 0x06;
