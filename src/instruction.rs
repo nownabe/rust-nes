@@ -110,6 +110,9 @@ impl From<u8> for Instruction {
             0x58 => Instruction(Opcode::CLI, Addressing::Implied, 2),
             0xB8 => Instruction(Opcode::CLV, Addressing::Implied, 2),
 
+            // Compare
+            0xC9 => Instruction(Opcode::CMP, Addressing::Immediate, 2),
+
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),
             0xD6 => Instruction(Opcode::DEC, Addressing::ZeroPageX, 6),
 

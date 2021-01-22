@@ -242,6 +242,7 @@ impl Cpu {
             Opcode::CLD => self.instruction_clear_flag(Flag::Decimal),
             Opcode::CLI => self.instruction_clear_flag(Flag::InterruptDisable),
             Opcode::CLV => self.instruction_clear_flag(Flag::Overflow),
+            Opcode::CMP => self.instruction_compare(nes, mode, self.a),
             Opcode::DEC => self.instruction_dec(nes, mode),
             Opcode::DEY => self.instruction_dey(nes, mode),
             Opcode::INX => self.instruction_inx(nes, mode),
@@ -271,6 +272,16 @@ impl Cpu {
 
     fn instruction_clear_flag(&mut self, flag: Flag) -> usize {
         self.write_flag(flag, false);
+        0
+    }
+
+    fn instruction_compare(&mut self, nes: &mut Nes, mode: Addressing, val: u8) -> usize {
+        let (_, data) = self.fetch_addressed_data(nes, &mode);
+
+        self.write_flag(Flag::Carry, val >= data);
+        self.write_flag(Flag::Zero, val == data);
+        self.write_flag(Flag::Negative, is_negative(val.wrapping_sub(data)));
+
         0
     }
 
@@ -723,6 +734,31 @@ mod tests {
         cpu.write_flag(Flag::Overflow, false);
         assert_eq!(cpu.execute_instruction(&mut nes), 4);
         assert_eq!(cpu.pc, PRG_ROM_BASE + 2 - 0x03);
+    }
+
+    #[test]
+    fn instruction_cmp() {
+        // Immediate, Flag behavior
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC9, 0x03]);
+        cpu.a = 4;
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC9, 0x03]);
+        cpu.a = 3;
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+        assert_eq!(cpu.read_flag(Flag::Zero), true);
+        assert_eq!(cpu.read_flag(Flag::Negative), false);
+
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC9, 0x03]);
+        cpu.a = 2;
+        assert_eq!(cpu.execute_instruction(&mut nes), 2);
+        assert_eq!(cpu.read_flag(Flag::Carry), false);
+        assert_eq!(cpu.read_flag(Flag::Zero), false);
+        assert_eq!(cpu.read_flag(Flag::Negative), true);
     }
 
     #[test]
