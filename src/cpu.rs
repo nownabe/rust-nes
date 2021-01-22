@@ -178,30 +178,31 @@ impl Cpu {
         h << 8 | l
     }
 
-    // Return (address: Option<u16>, data: u8)
+    // Return (address: Option<u16>, data: u8, is_page_crossed: bool)
     // Accumulator and Immediate don't appear at same instruction.
-    fn fetch_addressed_data(&mut self, nes: &mut Nes, mode: &Addressing) -> (Option<u16>, u8) {
+    fn fetch_addressed_data(&mut self, nes: &mut Nes, mode: &Addressing) -> (Option<u16>, u8, bool) {
         match mode {
-            Addressing::Implied => { (None, 0) },
-            Addressing::Accumulator => (None, self.a),
-            Addressing::Immediate => (None, self.fetch_byte(nes)),
+            Addressing::Implied => { (None, 0, false) },
+            Addressing::Accumulator => (None, self.a, false),
+            Addressing::Immediate => (None, self.fetch_byte(nes), false),
             Addressing::ZeroPage => {
                 let addr = self.fetch_byte(nes) as u16;
-                (Some(addr), self.read(nes, addr))
+                (Some(addr), self.read(nes, addr), false)
             },
             Addressing::ZeroPageX => {
                 let addr = self.fetch_byte(nes) as u16 + self.x as u16;
-                (Some(addr), self.read(nes, addr))
+                (Some(addr), self.read(nes, addr), false) // If needed, calc is_page_crossed.
             },
             Addressing::ZeroPageY => { todo!("Not implemented Reative addressing mode") },
             Addressing::Relative => { todo!("Not implemented Reative addressing mode") },
             Addressing::Absolute => {
                 let addr = self.fetch_word(nes);
-                (Some(addr), self.read(nes, addr))
+                (Some(addr), self.read(nes, addr), false)
             },
             Addressing::AbsoluteX => {
-                let addr = self.fetch_word(nes).wrapping_add(self.x as u16);
-                (Some(addr), self.read(nes, addr))
+                let base = self.fetch_word(nes);
+                let addr = base.wrapping_add(self.x as u16);
+                (Some(addr), self.read(nes, addr), base & 0xff00 != addr & 0xff00)
             },
             Addressing::AbsoluteY => { todo!("Not implemented Reative addressing mode") },
             Addressing::Indirect => { todo!("Not implemented Reative addressing mode") },
@@ -211,7 +212,7 @@ impl Cpu {
                 let l = self.read(nes, zero_page_addr) as u16;
                 let h = (self.read(nes, zero_page_addr.wrapping_add(1)) as u16) << 8;
                 let addr = l + h + self.y as u16;
-                (Some(addr), self.read(nes, addr))
+                (Some(addr), self.read(nes, addr), (l + h) & 0xff00 != addr & 0xff00)
             },
             Addressing::UNKNOWN => { panic!("Unknown addressing mode") },
         }
@@ -282,7 +283,7 @@ impl Cpu {
     }
 
     fn instruction_compare(&mut self, nes: &mut Nes, mode: Addressing, val: u8) -> usize {
-        let (_, data) = self.fetch_addressed_data(nes, &mode);
+        let (_, data, _) = self.fetch_addressed_data(nes, &mode);
 
         self.write_flag(Flag::Carry, val >= data);
         self.write_flag(Flag::Zero, val == data);
@@ -292,7 +293,7 @@ impl Cpu {
     }
 
     fn instruction_asl(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
-        let (addr, data) = self.fetch_addressed_data(nes, &mode);
+        let (addr, data, _) = self.fetch_addressed_data(nes, &mode);
 
         let next = data.wrapping_shl(1);
 
@@ -496,18 +497,14 @@ impl Cpu {
     }
 
     fn instruction_nop(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
-        let (addr, _) = self.fetch_addressed_data(nes, &mode);
+        let (addr, _, page_crossed) = self.fetch_addressed_data(nes, &mode);
 
         // Add 1 cycle if addressing mode is absolute X and page boundry is crossed
-        if mode == Addressing::AbsoluteX {
-            if let Some(addr) = addr {
-                if (addr & 0xff00) != (addr.wrapping_sub(self.x as u16) & 0xff00) {
-                    return 1;
-                }
-            }
+        if mode == Addressing::AbsoluteX && page_crossed {
+            1
+        } else {
+            0
         }
-
-        0
     }
 
     fn instruction_sei(&mut self, _: &mut Nes, _: Addressing) -> usize {
