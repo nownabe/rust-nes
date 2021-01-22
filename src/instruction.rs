@@ -113,6 +113,7 @@ impl From<u8> for Instruction {
             // Compare
             0xC9 => Instruction(Opcode::CMP, Addressing::Immediate, 2),
             0xC5 => Instruction(Opcode::CMP, Addressing::ZeroPage, 3),
+            0xD1 => Instruction(Opcode::CMP, Addressing::IndirectIndexed, 5),
 
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),
             0xD6 => Instruction(Opcode::DEC, Addressing::ZeroPageX, 6),
@@ -197,9 +198,9 @@ pub enum Addressing {
     AbsoluteY,
     Immediate,
     Implied,
-    IndexedIndirect, // OPC ($LL, X)
+    IndexedIndirect, // OPC ($LL, X); (Indirect, X)
     Indirect,
-    IndirectIndexed, // OPC ($LL), Y
+    IndirectIndexed, // OPC ($LL), Y; (Indirect), Y
     Relative,
     ZeroPage,
     ZeroPageX,
