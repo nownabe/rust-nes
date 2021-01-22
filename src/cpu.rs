@@ -507,9 +507,8 @@ impl Cpu {
     }
 
     fn instruction_nop(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
-        let (addr, _, page_crossed) = self.fetch_addressed_data(nes, &mode);
+        let (_, _, page_crossed) = self.fetch_addressed_data(nes, &mode);
 
-        // Add 1 cycle if addressing mode is absolute X and page boundry is crossed
         if mode == Addressing::AbsoluteX && page_crossed {
             1
         } else {
@@ -524,19 +523,10 @@ impl Cpu {
     }
 
     // ASL + ORA
-    fn instruction_slo(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
-        let addr = match addressing {
-            Addressing::IndexedIndirect => {
-                let addr = (self.fetch_byte(nes) + self.x) as u16;
-                let l = self.read(nes, addr) as u16;
-                let h = (self.read(nes, addr + 1) as u16) << 8;
-                l + h
-            },
-            _ => panic!("Unknown SLO addressing mode: {:?}", addressing),
-        };
+    fn instruction_slo(&mut self, nes: &mut Nes, mode: Addressing) -> usize {
+        let (_, data, _) = self.fetch_addressed_data(nes, &mode);
 
         // ASL
-        let data = self.read(nes, addr);
         let val = data.wrapping_shl(1);
         self.write_flag(Flag::Carry, data & 0b10000000 == 0b10000000);
 
@@ -546,7 +536,6 @@ impl Cpu {
         self.write_flag(Flag::Negative, is_negative(self.a));
 
         0
-
     }
 
     fn instruction_sta(&mut self, nes: &mut Nes, addressing: Addressing) -> usize {
