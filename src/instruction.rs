@@ -112,6 +112,7 @@ impl From<u8> for Instruction {
 
             // Compare
             0xC9 => Instruction(Opcode::CMP, Addressing::Immediate, 2),
+            0xC5 => Instruction(Opcode::CMP, Addressing::ZeroPage, 3),
 
             0xC6 => Instruction(Opcode::DEC, Addressing::ZeroPage, 5),
             0xD6 => Instruction(Opcode::DEC, Addressing::ZeroPageX, 6),

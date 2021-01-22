@@ -759,6 +759,13 @@ mod tests {
         assert_eq!(cpu.read_flag(Flag::Carry), false);
         assert_eq!(cpu.read_flag(Flag::Zero), false);
         assert_eq!(cpu.read_flag(Flag::Negative), true);
+
+        // ZeroPage
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xC5, 0x05]);
+        cpu.a = 4;
+        cpu.write(&mut nes, 0x0005, 0x03);
+        assert_eq!(cpu.execute_instruction(&mut nes), 3);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
     }
 
     #[test]
