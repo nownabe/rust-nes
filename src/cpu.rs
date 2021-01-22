@@ -204,7 +204,11 @@ impl Cpu {
                 let addr = base.wrapping_add(self.x as u16);
                 (Some(addr), self.read(nes, addr), base & 0xff00 != addr & 0xff00)
             },
-            Addressing::AbsoluteY => { todo!("Not implemented Reative addressing mode") },
+            Addressing::AbsoluteY => {
+                let base = self.fetch_word(nes);
+                let addr = base.wrapping_add(self.y as u16);
+                (Some(addr), self.read(nes, addr), base & 0xff00 != addr & 0xff00)
+            },
             Addressing::Indirect => { todo!("Not implemented Reative addressing mode") },
             Addressing::IndexedIndirect => {
                 let zero_page_addr = self.fetch_byte(nes).wrapping_add(self.x) as u16;
@@ -295,8 +299,12 @@ impl Cpu {
         self.write_flag(Flag::Zero, val == data);
         self.write_flag(Flag::Negative, is_negative(val.wrapping_sub(data)));
 
-        if mode == Addressing::IndirectIndexed && page_crossed {
-            1
+        if page_crossed {
+            match mode {
+                Addressing::AbsoluteY => 1,
+                Addressing::IndirectIndexed => 1,
+                _ => 0,
+            }
         } else {
             0
         }
@@ -773,6 +781,21 @@ mod tests {
         // Absolute
         // AbsoluteX
         // AbsoluteY
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD9, 0x01, 0x10]);
+        cpu.a = 0x03;
+        cpu.y = 0x05;
+        cpu.write(&mut nes, 0x1006, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 4);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
+        // AbsoluteY (page crossed)
+        let (mut cpu, mut nes) = new_test_cpu(vec![0xD9, 0xFF, 0x00]);
+        cpu.a = 0x03;
+        cpu.y = 0x05;
+        cpu.write(&mut nes, 0x00FF + 0x05, 0x02);
+        assert_eq!(cpu.execute_instruction(&mut nes), 5);
+        assert_eq!(cpu.read_flag(Flag::Carry), true);
+
         // IndexedIndirect
         let (mut cpu, mut nes) = new_test_cpu(vec![0xC1, 0x05]);
         cpu.a = 0x03;
