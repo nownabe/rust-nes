@@ -73,8 +73,8 @@ impl Cpu {
 
     fn interrupt(&mut self, nes: &mut Nes) {
         match nes.cpu_interruption {
-            Interruption::RESET => { debug!("CPU RESET interruption is not implemented yet") },
-            Interruption::IRQ => { debug!("CPU IRQ interruption is not implemented yet") },
+            Interruption::RESET => { todo!("CPU RESET interruption is not implemented yet") },
+            Interruption::IRQ => { todo!("CPU IRQ interruption is not implemented yet") },
             Interruption::BRK => {
                 if self.read_flag(Flag::InterruptDisable) {
                     return
@@ -87,7 +87,7 @@ impl Cpu {
 
                 self.pc = (self.read(nes, 0xFFFF) as u16) << 8 | self.read(nes, 0xFFFE) as u16;
             },
-            Interruption::NMI => { debug!("CPU NMI interruption is not implemented yet") },
+            Interruption::NMI => { todo!("CPU NMI interruption is not implemented yet") },
             Interruption::None => {},
         }
         nes.cpu_interruption = Interruption::None;

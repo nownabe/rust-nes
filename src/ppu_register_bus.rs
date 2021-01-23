@@ -25,29 +25,29 @@ impl PpuRegisterBus {
 
     pub fn cpu_read(&mut self, addr: u16) -> u8 {
         match addr.into() {
-            Register::PPUCTRL => { debug!("Setting PPUCTRL is not implemented"); 0 },
-            Register::PPUMASK => { debug!("Setting PPUMASK is not implemented"); 0 },
-            Register::PPUSTATUS => { debug!("Setting PPUSTATUS is not implemented"); 0 },
-            Register::OAMADDR => { debug!("Setting OAMADDR is not implemented"); 0 },
-            Register::OAMDATA => { debug!("Setting OAMDATA is not implemented"); 0 },
-            Register::PPUSCROLL => { debug!("Setting PPUSCROLL is not implemented"); 0 },
+            Register::PPUCTRL => { todo!("Setting PPUCTRL is not implemented") },
+            Register::PPUMASK => { todo!("Setting PPUMASK is not implemented") },
+            Register::PPUSTATUS => { todo!("Setting PPUSTATUS is not implemented") },
+            Register::OAMADDR => { todo!("Setting OAMADDR is not implemented") },
+            Register::OAMDATA => { todo!("Setting OAMDATA is not implemented") },
+            Register::PPUSCROLL => { todo!("Setting PPUSCROLL is not implemented") },
             Register::PPUADDR => panic!("Forbidden to read PPUADDR from CPU"),
             Register::PPUDATA => {
                 self.ppu_data_status = PpuDataStatus::Read;
                 self.ppu_data
             },
-            Register::OAMDMA => { debug!("Setting OAMDMA is not implemented"); 0 },
+            Register::OAMDMA => { todo!("Setting OAMDMA is not implemented") },
         }
     }
 
     pub fn cpu_write(&mut self, addr: u16, data: u8) {
         match addr.into() {
-            Register::PPUCTRL => { debug!("Setting PPUCTRL is not implemented"); },
-            Register::PPUMASK => { debug!("Setting PPUMASK is not implemented"); },
-            Register::PPUSTATUS => { debug!("Setting PPUSTATUS is not implemented"); },
-            Register::OAMADDR => { debug!("Setting OAMADDR is not implemented"); },
-            Register::OAMDATA => { debug!("Setting OAMDATA is not implemented"); },
-            Register::PPUSCROLL => { debug!("Setting PPUSCROLL is not implemented"); },
+            Register::PPUCTRL => { todo!("Setting PPUCTRL is not implemented"); },
+            Register::PPUMASK => { todo!("Setting PPUMASK is not implemented"); },
+            Register::PPUSTATUS => { todo!("Setting PPUSTATUS is not implemented"); },
+            Register::OAMADDR => { todo!("Setting OAMADDR is not implemented"); },
+            Register::OAMDATA => { todo!("Setting OAMDATA is not implemented"); },
+            Register::PPUSCROLL => { todo!("Setting PPUSCROLL is not implemented"); },
             Register::PPUADDR => {
                 match (self.ppu_addr_higher, self.ppu_addr) {
                     (None, _) => self.ppu_addr_higher = Some(data),
@@ -61,7 +61,7 @@ impl PpuRegisterBus {
                 self.ppu_data = data;
                 self.ppu_data_status = PpuDataStatus::Written;
             },
-            Register::OAMDMA => { debug!("Setting OAMDMA is not implemented"); },
+            Register::OAMDMA => { todo!("Setting OAMDMA is not implemented"); },
         }
     }
 

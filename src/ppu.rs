@@ -119,8 +119,8 @@ impl Ppu {
             0x3000..=0x3EFF => { // mirrors of 0x2000 - 0x2eff
                 self.read_vram(addr - 0x3000)
             },
-            0x3F00..=0x3F1F => { debug!("Palette RAM is not implemented"); 0 },
-            0x3F20..=0x3FFF => { debug!("Palette RAM is not implemented"); 0 },
+            0x3F00..=0x3F1F => { todo!("Palette RAM is not implemented"); 0 },
+            0x3F20..=0x3FFF => { todo!("Palette RAM is not implemented"); 0 },
             _ => {
                 panic!("Out of PPU's addressing range: 0x{:X}", addr)
             },
@@ -139,8 +139,8 @@ impl Ppu {
             0x3000..=0x3EFF => { // mirrors of 0x2000 - 0x2eff
                 self.write_vram(addr - 0x3000, data);
             },
-            0x3F00..=0x3F1F => { debug!("Palette RAM is not implemented") },
-            0x3F20..=0x3FFF => { debug!("Palette RAM is not implemented") },
+            0x3F00..=0x3F1F => { todo!("Palette RAM is not implemented") },
+            0x3F20..=0x3FFF => { todo!("Palette RAM is not implemented") },
             _ => {
                 panic!("Out of PPU's addressing range: 0x{:X}", addr)
             },
