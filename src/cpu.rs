@@ -248,6 +248,28 @@ impl Cpu {
     fn execute_instruction(&mut self, nes: &mut Nes) -> usize {
         let Instruction(opcode, mode, cycle) = self.fetch_byte(nes).into();
 
+        // Debug print
+        match mode {
+            Addressing::Implied => debug!("{:?}", opcode),
+            Addressing::Accumulator => debug!("{:?} A", opcode),
+            Addressing::Immediate => debug!("{:?} #${:02X}", opcode, self.read(nes, self.pc)),
+            Addressing::ZeroPage => debug!("{:?} ${:02X}", opcode, self.read(nes, self.pc)),
+            Addressing::ZeroPageX => debug!("{:?} ${:02X}, X", opcode, self.read(nes, self.pc)),
+            Addressing::ZeroPageY => debug!("{:?} ${:02X}, Y", opcode, self.read(nes, self.pc)),
+            Addressing::Relative => debug!("{:?} ${:02X}", opcode, self.read(nes, self.pc)),
+            Addressing::Absolute => debug!("{:?} ${:02X}{:02X}",
+                                           opcode, self.read(nes, self.pc+1), self.read(nes, self.pc)),
+            Addressing::AbsoluteX => debug!("{:?} ${:02X}{:02X}, X",
+                                            opcode, self.read(nes, self.pc+1), self.read(nes, self.pc)),
+            Addressing::AbsoluteY => debug!("{:?} ${:02X}{:02X}, Y",
+                                            opcode, self.read(nes, self.pc+1), self.read(nes, self.pc)),
+            Addressing::Indirect=> debug!("{:?} (${:02X}{:02X})",
+                                          opcode, self.read(nes, self.pc+1), self.read(nes, self.pc)),
+            Addressing::IndexedIndirect => debug!("{:?} (${:02X}, X)", opcode, self.read(nes, self.pc)),
+            Addressing::IndirectIndexed => debug!("{:?} (${:02X}), Y", opcode, self.read(nes, self.pc)),
+            Addressing::UNKNOWN => {},
+        }
+
         let additional_cycle = match opcode {
             Opcode::ASL => self.instruction_asl(nes, mode),
             Opcode::BMI => self.instruction_bmi(nes, mode),
@@ -552,7 +574,6 @@ impl Cpu {
             Addressing::Absolute => self.fetch_word(nes),
             _ => panic!("Unknown addressing mode: {:?}", addressing),
         };
-        debug!("STA {:04X} (A = {:02X})", addr, self.a);
         self.write(nes, addr, self.a);
 
         0
