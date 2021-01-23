@@ -101,26 +101,19 @@ impl Ppu {
         rendered
     }
 
-    pub fn read_vram(&self, addr: u16) -> u8 {
-        self.vram[addr as usize]
-    }
-
-    pub fn write_vram(&mut self, addr: u16, data: u8) {
-        self.vram[addr as usize] = data;
-    }
-
     // ref. https://wiki.nesdev.com/w/index.php/PPU_memory_map
     fn read(&mut self, nes: &mut Nes, addr: u16) -> u8 {
+        let addr = addr as usize;
         match addr {
-            0x0000..=0x1FFF => nes.read_chr_rom(addr),
+            0x0000..=0x1FFF => nes.read_chr_rom(addr as u16),
             0x2000..=0x2FFF => {
-                self.read_vram(addr - 0x2000)
+                self.vram[addr - 0x2000]
             },
             0x3000..=0x3EFF => { // mirrors of 0x2000 - 0x2eff
-                self.read_vram(addr - 0x3000)
+                self.vram[addr - 0x3000]
             },
-            0x3F00..=0x3F1F => { todo!("Palette RAM is not implemented"); 0 },
-            0x3F20..=0x3FFF => { todo!("Palette RAM is not implemented"); 0 },
+            0x3F00..=0x3F1F => { todo!("Palette RAM is not implemented") },
+            0x3F20..=0x3FFF => { todo!("Palette RAM is not implemented") },
             _ => {
                 panic!("Out of PPU's addressing range: 0x{:X}", addr)
             },
@@ -129,15 +122,16 @@ impl Ppu {
 
     // ref. https://wiki.nesdev.com/w/index.php/PPU_memory_map
     fn write(&mut self, addr: u16, data: u8) {
+        let addr = addr as usize;
         match addr {
             0x0000..=0x1FFF => {
                 //panic!("Write access is forbidden: PPU's 0x{:X}", addr),
             },
             0x2000..=0x2FFF => {
-                self.write_vram(addr - 0x2000, data);
+                self.vram[addr - 0x2000] = data;
             },
             0x3000..=0x3EFF => { // mirrors of 0x2000 - 0x2eff
-                self.write_vram(addr - 0x3000, data);
+                self.vram[addr - 0x3000] = data;
             },
             0x3F00..=0x3F1F => { todo!("Palette RAM is not implemented") },
             0x3F20..=0x3FFF => { todo!("Palette RAM is not implemented") },
